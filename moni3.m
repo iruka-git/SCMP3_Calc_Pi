@@ -38,21 +38,43 @@ cyr0 = 0xffb0
 cyr1 = 0xffb1
 cyr2 = 0xffb2
 
+;; 収束ループカウンタ
 cnt3 = 0xffb3
 cnt4 = 0xffb4
 
-indx0 = 0xffb5
-indx1 = 0xffb6
-
-m1    = 0xffb7
+;; arctan()計算引数
+m1    = 0xffb6
 n1    = 0xffb8
+
+;; arctan()内部変数
 sign1 = 0xffb9
 tab1  = 0xffba
 lf1   = 0xffbb
 chr1  = 0xffbc
 top1  = 0xffbd
 
-PRECISION = 200
+indx0 = 0xffc0
+indx1 = 0xffc1
+
+;; n_2 = n1 * n1
+n_2    = 0xffc2
+
+;; 除算カウンタ16回.
+divcnt = 0xffc4
+
+;; 計算する桁数（２進数の配列バイト数）
+PRECISION = 5000
+
+;; 16bit値 デクリメントしてゼロチェック ==>Areg .
+dec_w macro work
+	ld ea,work
+	sub ea, =1
+	st ea,work
+	
+	or a,e
+
+	endm
+
 
 #endasm
 // スタート
@@ -182,8 +204,7 @@ readhex()
 		readhex1();e=a;
 		if(e!=0xff) {
 			p4mul16();
-			a=e;
-			e<>a; a=0; e<>a; //e=0;
+			a=e;e=0;
 			ea+=p4;
 			p4=ea;
 			a=r4;a+=1;r4=a;
@@ -420,6 +441,17 @@ inbuf:
 bufend:
 	db(0);
 
+// =============  ここから、円周率計算 ===============
+//
+//
+PI_MSG_1:
+	db(0x0d);
+	db(0x0a);
+	db("> Calculating PI ... ");
+	db(0x0d);
+	db(0x0a);
+	db(0);
+
 PI_EQU_1:
 	db("PI = ");
 	db(0);
@@ -430,19 +462,16 @@ PI_EQU_2:
 	db(0x0a);
 	db(0);
 
-// CALC PI //
-
 // 割り算=========
 // q0/q4
 
 div32_16()
 {
-	cnt2=16;
-
 	cyr0=0;
 	cyr1=0;
 	cyr2=0;
 
+	divcnt=16;
 	do {
 
 // === q0:q3 の32bit を左シフト(2倍)
@@ -451,7 +480,7 @@ div32_16()
 		q0=ea;
 
 		// sr = CY(bit7) CYをcyr1:cyr2に整数値(0 or 1)で保管.
-		a=0;e=a;
+		e=0;
 		a=s;sl(ea);cyr0=ea;
 
 		// q2 <<=1 : q2+= .CY
@@ -467,7 +496,7 @@ div32_16()
 		}else{
 			pop(ea);//減算結果を破棄する.
 		}
-	}while(--cnt2);	
+	}while(--divcnt);
 }
 
 // 割り算テスト
@@ -483,7 +512,7 @@ div_test()
 	// q0/q4
 	div32_16();
 
-	ea=#q0;p2=ea;mdump(); //メモリーダンプの実行.
+	p2=#q0;mdump(); //メモリーダンプの実行.
 }
 
 mp_set()
@@ -492,106 +521,111 @@ mp_set()
 	*p2++ = 0;
 	a=e;
 	*p2++ = a;
-	cnt1=#PRECISION;
+
+	ea=#PRECISION;cnt1=ea;
 	do {
 		*p2++ = 0;
-	}while(--cnt1);
+		dec_w(cnt1);
+	}while(a!=0);
+}
+
+mp_zerochk()
+{
+	ea=#PRECISION; ea-=10; cnt1=ea;
+	do {
+		a = *p2++;
+		if(a!=0) {
+			return;
+		}
+		dec_w(cnt1);
+	}while(a!=0);
+	a=0; // Zero判定!
 }
 
 mp_copy()
 {
-	cnt1=#PRECISION;
+	ea=#PRECISION;cnt1=ea;
 	do {
 		a = *p3++;
 		    *p2++ = a;
-	}while(--cnt1);
+		dec_w(cnt1);
+	}while(a!=0);
+}
+
+p2_dump()
+{
+	putc();
+	a=':';putc();
+
+	mdump_8();
+	put_crlf();
 }
 
 q0_dump()
 {
 	push(p2);
-	ea=#q0;p2=ea;
-	mdump_8();
-	put_crlf();
+	p2=#q0;p2_dump();
 	pop(p2);
 }
 
 pi_dump()
 {
 	push(p2);
-	putc();
-	a=':';putc();
-	ea=#Pi;p2=ea;
-	mdump_b16();
-	put_crlf();
+	p2=#Pi;p2_dump();
 	pop(p2);
 }
 
 ma_dump()
 {
 	push(p2);
-	putc();
-	a=':';putc();
-	ea=#ma;p2=ea;
-	mdump_b16();
-	put_crlf();
+	p2=#ma;p2_dump();
 	pop(p2);
 }
 
 mb_dump()
 {
 	push(p2);
-	putc();
-	a=':';putc();
-	ea=#mb;p2=ea;
-	mdump_b16();
-	put_crlf();
+	p2=#mb;p2_dump();
 	pop(p2);
 }
 
 mc_dump()
 {
 	push(p2);
-	putc();
-	a=':';putc();
-	ea=#mc;p2=ea;
-	mdump_b16();
-	put_crlf();
+	p2=#mc;p2_dump();
 	pop(p2);
 }
 
 /**********************************************************************
- *  mp を 整数 n で除算する
+ *  p2 配列 を 整数 reg_ea で除算する
  **********************************************************************
- * mp_div(MP *p2,uchar n1)
+ * mp_div(MP *p2,int ea)
  */
 mp_div()
 {
 	q4=ea; // q4:q5 = 除数.
 	ea=0;q2=ea;
+	e=0;
 
-	a=0;e=a;
-
-	cnt1=#PRECISION;
+	ea=#PRECISION;ea>>=1;
+	cnt1=ea;
 	do {
 		a = p2[0];e=a;
 		a = p2[1];
 		q0=ea; // q0:q3= 被除数.
-
-//		a='>';putc();q0_dump();		
 		div32_16();
-//		a=' ';putc();q0_dump();		
 
 		// q0:q1 = 商
 		ea=q0;
 		p2[1]=a; a=e;
 		p2[0]=a;	
 		// q2:q3 = 剰余(次のループで65536倍して再利用)
-		a=*p2++;
-		a=*p2++;
 
-		dld(a,cnt1); // --cnt1;
-	}while(--cnt1);
+		//ポインタを2バイト進める
+		ld(a,@2,p2);
+
+		dec_w(cnt1);
+	}while(a!=0);
 }
 
 p2_last()
@@ -626,7 +660,7 @@ mp_add()
 	r2 = 0;
 	r3 = 0;
 
-	cnt1=#PRECISION;
+	ea=#PRECISION;cnt1=ea;
 	do {
 		// p2[0] -= p3[0];
 		a = *p2; r0 = a;
@@ -644,7 +678,9 @@ mp_add()
 		// p2++ p3++;
 		ld(a,@-1,p2);		
 		ld(a,@-1,p3);		
-	}while(--cnt1);
+
+		dec_w(cnt1);
+	}while(a!=0);
 }
 
 /**********************************************************************
@@ -665,7 +701,7 @@ mp_sub()
 	r2 = 0;
 	r3 = 0;
 
-	cnt1=#PRECISION;
+	ea=#PRECISION;cnt1=ea;
 	do {
 		// p2[0] -= p3[0];
 		a = *p2; r0 = a;
@@ -683,7 +719,9 @@ mp_sub()
 		// p2-- p3--;
 		ld(a,@-1,p2);		
 		ld(a,@-1,p3);		
-	}while(--cnt1);
+
+		dec_w(cnt1);
+	}while(a!=0);
 }
 /**********************************************************************
  *  ea を 10倍する.
@@ -691,20 +729,27 @@ mp_sub()
  */
 ea_mul10()
 {
-//	push(ea);
-//		prhex4();
-//		a='=';putc();
-//	pop(ea);
 	// 乗算命令MPYはEAとTの内容を乗じて上位16 bitをEAに、下位16 bitをTに入れます。
 	// 演算は符号付きで行われます。
 	t=ea;
 	ea=10;mpy(ea,t);
 	ea=t;
-//	push(ea);
-//		prhex4();
-//		a=';';putc();put_crlf();
-//	pop(ea);
 }
+
+/**********************************************************************
+ *  ea を 二乗する.
+ **********************************************************************
+ */
+ea_mul_ea()
+{
+	// 乗算命令MPYはEAとTの内容を乗じて上位16 bitをEAに、下位16 bitをTに入れます。
+	// 演算は符号付きで行われます。
+	t=ea;
+		mpy(ea,t);
+	ea=t;
+}
+
+
 /**********************************************************************
  *  m0 を 10倍する.
  **********************************************************************
@@ -721,7 +766,7 @@ mp_mul10()
 	r2 = 0;
 	r3 = 0;
 
-	cnt1=#PRECISION;
+	ea=#PRECISION;cnt1=ea;
 	do {
 		a = *p2; r0 = a;
 		a = 0;   r1 = a;
@@ -733,7 +778,9 @@ mp_mul10()
 
 		// p2--;
 		ld(a,@-1,p2);		
-	}while(--cnt1);
+
+		dec_w(cnt1);
+	}while(a!=0);
 }
 
 /**********************************************************************
@@ -746,8 +793,9 @@ print_pi()
 	tab1=0;lf1=0;top1=0;
 	
 //	for(i=0;i< (PRECISION*2+1) ;i++) {
-	cnt3=#PRECISION;
-	ild(a,cnt3);
+
+	ea=#PRECISION;ea<<=1;ea+=1;
+	cnt3=ea;
 	do {
 		//a='+';pi_dump();
 		ea=#Pi;p2=ea;
@@ -773,7 +821,9 @@ print_pi()
 				}
 			}
 		}
-	}while(--cnt3);
+		dec_w(cnt3);
+	}while(a!=0);
+
 	put_crlf();
 }
 
@@ -821,76 +871,61 @@ calc_M_atan_1_N()
 /**********************************************************************
  *  ひとつのArcTan項を計算する ma = m * atan(1/n)
  **********************************************************************
-    void calc_M_atan_1_N(int m,int n)
+    void calc_M_atan_1_N(int m1,int n1)
  */
 calc_M_atan_1_N()
 {
+// n_2 = n1*n1
+	e=0;a=n1; ea_mul_ea(); n_2=ea;
+	// p2=#n_2; a='*';p2_dump();
+
 // ma = m * (1/n)
-	ea=#ma ; p2=ea;
-	a=0;e=a;a=m1  ; mp_set();
-
-	ea=#ma ; p2=ea;
-	a=0;e=a;a=n1  ; mp_div();
-
-//	a='A'; ma_dump();
+	p2=#ma ; e=0;a=m1  ; mp_set();
+	p2=#ma ; e=0;a=n1  ; mp_div();
 
 // mc = m * (1/n)
-	ea=#mc ; p2=ea;
-	ea=#ma ; p3=ea;
-	mp_copy();			//	mc = ma;
-
-//	a='C'; mc_dump();
+	p2=#mc ; p3=#ma    ; mp_copy();		//	mc = ma;
 
 // arctan(x) = x - (1/3)x**3 + (1/5)x**5 - (1/7)x**7 ・・・
 // LOOP: ma +-= mb
 
-	indx0=3;
-	indx1=0;
 	sign1=0;
 
-	cnt3=120;
-	do {
+	ea=3;indx0=ea; // indx0 = 3,5,7,9,11, ...
+	while(1) {
 		// mc = mc*(1/n)*(1/n)
-		ea=#mc ; p2=ea;
-		a=0;e=a;a=n1;	mp_div();
-		ea=#mc ; p2=ea;
-		a=0;e=a;a=n1;	mp_div();
-
-//		a='c'; mc_dump();
-		
+		a=n_2;if(a==25) {
+			p2=#mc;	ea=n_2;   mp_div();			// mc = mc * (1/ (n*n) );
+		}else{
+			p2=#mc;	e=0;a=n1; mp_div();
+			p2=#mc;	e=0;a=n1; mp_div();
+		}
 		// mb = mc*(1/i)
-		ea=#mb ; p2=ea;
-		ea=#mc ; p3=ea;
-		mp_copy();			//	mb = mc;
+		p2=#mb ; p3=#mc ; mp_copy();		//	mb = mc;
+		p2=#mb ; ea=indx0; mp_div();		//  mb /= indx0;
 
-		ea=#mb ; p2=ea;
-		ea=indx0;mp_div();
-
-//		a='b'; mb_dump();
+		p2=#mb ; mp_zerochk(); if(a==0) break;
 		
-//		if(mp_zerochk(mb,PRECISION-16)==0) break;
-		
-		ea=#ma ; p2=ea;
-		ea=#mb ; p3=ea;
+		p2=#ma ; p3=#mb ;
 
 		a=sign1;a ^= 1;sign1=a;
 		if(a!=0) {
-			mp_sub();
+			mp_sub();	// ma += mb;
 		}else{
-			mp_add();
+			mp_add();	// ma -= mb;
 		}
 
 		// indx0 += 2;
 		ea=indx0;ea+=2;
 		indx0=ea;
+	}
 
-	}while(--cnt3);
 	a='A'; ma_dump();
 }
 
 dump_pi()
 {
-	ea=#Pi;p2=ea;mdump(); //メモリーダンプの実行.
+	p2=#Pi; mdump(); //メモリーダンプの実行.
 }
 /**********************************************************************
  *	マチンの公式でπを計算して、Pi に格納
@@ -901,16 +936,13 @@ calc_pi()
 //	16 arctan(1/5)
 	m1=16;n1=5;
 	calc_M_atan_1_N();
-	ea=#Pi ; p2=ea;
-	ea=#ma ; p3=ea;
-	mp_copy();			//	*Pi = *ma;
+	p2=#Pi ; p3=#ma ; mp_copy();		//	*Pi = *ma;
 
 // -4 arctan(1/239)
 	m1=4;n1=239;
 	calc_M_atan_1_N();
-	ea=#Pi ; p2=ea;
-	ea=#ma ; p3=ea;
-	mp_sub();			// *Pi -= *ma;
+	p2=#Pi ; p3=#ma ; mp_sub();			// *Pi -= *ma;
+
 // ===> Pi
 }
 
@@ -920,6 +952,8 @@ calc_pi()
  */
 pi_main()
 {
+	p2=#PI_MSG_1;puts();	
+
 	// 円周率計算.
 	calc_pi();
 

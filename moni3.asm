@@ -37,21 +37,43 @@ cyr0 = 0xffb0
 cyr1 = 0xffb1
 cyr2 = 0xffb2
 
+;; 収束ループカウンタ
 cnt3 = 0xffb3
 cnt4 = 0xffb4
 
-indx0 = 0xffb5
-indx1 = 0xffb6
-
-m1    = 0xffb7
+;; arctan()計算引数
+m1    = 0xffb6
 n1    = 0xffb8
+
+;; arctan()内部変数
 sign1 = 0xffb9
 tab1  = 0xffba
 lf1   = 0xffbb
 chr1  = 0xffbc
 top1  = 0xffbd
 
-PRECISION = 200
+indx0 = 0xffc0
+indx1 = 0xffc1
+
+;; n_2 = n1 * n1
+n_2    = 0xffc2
+
+;; 除算カウンタ16回.
+divcnt = 0xffc4
+
+;; 計算する桁数（２進数の配列バイト数）
+PRECISION = 5000
+
+;; 16bit値 デクリメントしてゼロチェック ==>Areg .
+dec_w macro work
+	ld ea,work
+	sub ea, =1
+	st ea,work
+	
+	or a,e
+
+	endm
+
 
 ;// スタート
 ;	 nop;
@@ -301,9 +323,8 @@ __wh008:
 	bz	__el009
 ;			p4mul16();
 	jsr	p4mul16
-;			a=e;
+;			a=e;e=0;
 	ld	a,e
-;			e<>a; a=0; e<>a; //e=0;
 	xch	e,a
 	ld	a, =0
 	xch	e,a
@@ -774,6 +795,24 @@ bufend:
 ;	db(0);
 	db	0
 ;
+;// =============  ここから、円周率計算 ===============
+;//
+;//
+;PI_MSG_1:
+PI_MSG_1:
+;	db(0x0d);
+	db	0x0d
+;	db(0x0a);
+	db	0x0a
+;	db("> Calculating PI ... ");
+	db	"> Calculating PI ... "
+;	db(0x0d);
+	db	0x0d
+;	db(0x0a);
+	db	0x0a
+;	db(0);
+	db	0
+;
 ;PI_EQU_1:
 PI_EQU_1:
 ;	db("PI = ");
@@ -792,18 +831,12 @@ PI_EQU_2:
 ;	db(0);
 	db	0
 ;
-;// CALC PI //
-;
 ;// 割り算=========
 ;// q0/q4
 ;
 ;div32_16()
 ;{
 div32_16:
-;	cnt2=16;
-	ld	a, =16
-	st	a,cnt2
-;
 ;	cyr0=0;
 	ld	a, =0
 	st	a,cyr0
@@ -814,6 +847,9 @@ div32_16:
 	ld	a, =0
 	st	a,cyr2
 ;
+;	divcnt=16;
+	ld	a, =16
+	st	a,divcnt
 ;	do {
 __do027:
 ;
@@ -826,9 +862,10 @@ __do027:
 	st	ea,q0
 ;
 ;		// sr = CY(bit7) CYをcyr1:cyr2に整数値(0 or 1)で保管.
-;		a=0;e=a;
+;		e=0;
+	xch	e,a
 	ld	a, =0
-	ld	e,a
+	xch	e,a
 ;		a=s;sl(ea);cyr0=ea;
 	ld	a,s
 	sl	ea
@@ -866,8 +903,8 @@ __el028:
 	pop	ea
 ;		}
 __fi028:
-;	}while(--cnt2);	
-	dld	A,cnt2
+;	}while(--divcnt);
+	dld	A,divcnt
 	bnz	__do027
 __od027:
 ;}
@@ -894,9 +931,8 @@ div_test:
 ;	div32_16();
 	jsr	div32_16
 ;
-;	ea=#q0;p2=ea;mdump(); //メモリーダンプの実行.
-	ld	ea, =q0
-	ld	p2,ea
+;	p2=#q0;mdump(); //メモリーダンプの実行.
+	ld	p2, =q0
 	jsr	mdump
 ;}
 	ret
@@ -913,37 +949,83 @@ mp_set:
 	ld	a,e
 ;	*p2++ = a;
 	st	a, @1,p2
-;	cnt1=#PRECISION;
-	ld	a, =PRECISION
-	st	a,cnt1
+;
+;	ea=#PRECISION;cnt1=ea;
+	ld	ea, =PRECISION
+	st	ea,cnt1
 ;	do {
 __do029:
 ;		*p2++ = 0;
 	ld	a, =0
 	st	a, @1,p2
-;	}while(--cnt1);
-	dld	A,cnt1
+;		dec_w(cnt1);
+	dec_w	cnt1
+;	}while(a!=0);
 	bnz	__do029
 __od029:
+;}
+	ret
+;
+;mp_zerochk()
+;{
+mp_zerochk:
+;	ea=#PRECISION; ea-=10; cnt1=ea;
+	ld	ea, =PRECISION
+	sub	ea, =10
+	st	ea,cnt1
+;	do {
+__do030:
+;		a = *p2++;
+	ld	a, @1,p2
+;		if(a!=0) {
+	bz	__el031
+;			return;
+	ret
+;		}
+;		dec_w(cnt1);
+__el031:
+	dec_w	cnt1
+;	}while(a!=0);
+	bnz	__do030
+__od030:
+;	a=0; // Zero判定!
+	ld	a, =0
 ;}
 	ret
 ;
 ;mp_copy()
 ;{
 mp_copy:
-;	cnt1=#PRECISION;
-	ld	a, =PRECISION
-	st	a,cnt1
+;	ea=#PRECISION;cnt1=ea;
+	ld	ea, =PRECISION
+	st	ea,cnt1
 ;	do {
-__do030:
+__do032:
 ;		a = *p3++;
 	ld	a, @1,p3
 ;		    *p2++ = a;
 	st	a, @1,p2
-;	}while(--cnt1);
-	dld	A,cnt1
-	bnz	__do030
-__od030:
+;		dec_w(cnt1);
+	dec_w	cnt1
+;	}while(a!=0);
+	bnz	__do032
+__od032:
+;}
+	ret
+;
+;p2_dump()
+;{
+p2_dump:
+;	putc();
+	jsr	putc
+;	a=':';putc();
+	ld	a, =':'
+	jsr	putc
+;
+;	mdump_8();
+	jsr	mdump_8
+;	put_crlf();
+	jsr	put_crlf
 ;}
 	ret
 ;
@@ -952,13 +1034,9 @@ __od030:
 q0_dump:
 ;	push(p2);
 	push	p2
-;	ea=#q0;p2=ea;
-	ld	ea, =q0
-	ld	p2,ea
-;	mdump_8();
-	jsr	mdump_8
-;	put_crlf();
-	jsr	put_crlf
+;	p2=#q0;p2_dump();
+	ld	p2, =q0
+	jsr	p2_dump
 ;	pop(p2);
 	pop	p2
 ;}
@@ -969,18 +1047,9 @@ q0_dump:
 pi_dump:
 ;	push(p2);
 	push	p2
-;	putc();
-	jsr	putc
-;	a=':';putc();
-	ld	a, =':'
-	jsr	putc
-;	ea=#Pi;p2=ea;
-	ld	ea, =Pi
-	ld	p2,ea
-;	mdump_b16();
-	jsr	mdump_b16
-;	put_crlf();
-	jsr	put_crlf
+;	p2=#Pi;p2_dump();
+	ld	p2, =Pi
+	jsr	p2_dump
 ;	pop(p2);
 	pop	p2
 ;}
@@ -991,18 +1060,9 @@ pi_dump:
 ma_dump:
 ;	push(p2);
 	push	p2
-;	putc();
-	jsr	putc
-;	a=':';putc();
-	ld	a, =':'
-	jsr	putc
-;	ea=#ma;p2=ea;
-	ld	ea, =ma
-	ld	p2,ea
-;	mdump_b16();
-	jsr	mdump_b16
-;	put_crlf();
-	jsr	put_crlf
+;	p2=#ma;p2_dump();
+	ld	p2, =ma
+	jsr	p2_dump
 ;	pop(p2);
 	pop	p2
 ;}
@@ -1013,18 +1073,9 @@ ma_dump:
 mb_dump:
 ;	push(p2);
 	push	p2
-;	putc();
-	jsr	putc
-;	a=':';putc();
-	ld	a, =':'
-	jsr	putc
-;	ea=#mb;p2=ea;
-	ld	ea, =mb
-	ld	p2,ea
-;	mdump_b16();
-	jsr	mdump_b16
-;	put_crlf();
-	jsr	put_crlf
+;	p2=#mb;p2_dump();
+	ld	p2, =mb
+	jsr	p2_dump
 ;	pop(p2);
 	pop	p2
 ;}
@@ -1035,27 +1086,18 @@ mb_dump:
 mc_dump:
 ;	push(p2);
 	push	p2
-;	putc();
-	jsr	putc
-;	a=':';putc();
-	ld	a, =':'
-	jsr	putc
-;	ea=#mc;p2=ea;
-	ld	ea, =mc
-	ld	p2,ea
-;	mdump_b16();
-	jsr	mdump_b16
-;	put_crlf();
-	jsr	put_crlf
+;	p2=#mc;p2_dump();
+	ld	p2, =mc
+	jsr	p2_dump
 ;	pop(p2);
 	pop	p2
 ;}
 	ret
 ;
 ;/**********************************************************************
-; *  mp を 整数 n で除算する
+; *  p2 配列 を 整数 reg_ea で除算する
 ; **********************************************************************
-; * mp_div(MP *p2,uchar n1)
+; * mp_div(MP *p2,int ea)
 ; */
 ;mp_div()
 ;{
@@ -1065,16 +1107,18 @@ mp_div:
 ;	ea=0;q2=ea;
 	ld	ea, =0
 	st	ea,q2
-;
-;	a=0;e=a;
+;	e=0;
+	xch	e,a
 	ld	a, =0
-	ld	e,a
+	xch	e,a
 ;
-;	cnt1=#PRECISION;
-	ld	a, =PRECISION
-	st	a,cnt1
+;	ea=#PRECISION;ea>>=1;
+	ld	ea, =PRECISION
+	sr	ea
+;	cnt1=ea;
+	st	ea,cnt1
 ;	do {
-__do031:
+__do033:
 ;		a = p2[0];e=a;
 	ld	a,0,p2
 	ld	e,a
@@ -1082,11 +1126,8 @@ __do031:
 	ld	a,1,p2
 ;		q0=ea; // q0:q3= 被除数.
 	st	ea,q0
-;
-;//		a='>';putc();q0_dump();		
 ;		div32_16();
 	jsr	div32_16
-;//		a=' ';putc();q0_dump();		
 ;
 ;		// q0:q1 = 商
 ;		ea=q0;
@@ -1097,17 +1138,16 @@ __do031:
 ;		p2[0]=a;	
 	st	a,0,p2
 ;		// q2:q3 = 剰余(次のループで65536倍して再利用)
-;		a=*p2++;
-	ld	a, @1,p2
-;		a=*p2++;
-	ld	a, @1,p2
 ;
-;		dld(a,cnt1); // --cnt1;
-	dld	a,cnt1
-;	}while(--cnt1);
-	dld	A,cnt1
-	bnz	__do031
-__od031:
+;		//ポインタを2バイト進める
+;		ld(a,@2,p2);
+	ld	a,@2,p2
+;
+;		dec_w(cnt1);
+	dec_w	cnt1
+;	}while(a!=0);
+	bnz	__do033
+__od033:
 ;}
 	ret
 ;
@@ -1170,11 +1210,11 @@ mp_add:
 	ld	a, =0
 	st	a,r3
 ;
-;	cnt1=#PRECISION;
-	ld	a, =PRECISION
-	st	a,cnt1
+;	ea=#PRECISION;cnt1=ea;
+	ld	ea, =PRECISION
+	st	ea,cnt1
 ;	do {
-__do032:
+__do034:
 ;		// p2[0] -= p3[0];
 ;		a = *p2; r0 = a;
 	ld	a, 0,p2
@@ -1198,20 +1238,22 @@ __do032:
 	st	a,cyr1
 ;		a=e;if(a!=0) {cyr1=1;}
 	ld	a,e
-	bz	__el033
+	bz	__el035
 	ld	a, =1
 	st	a,cyr1
 ;
 ;		// p2++ p3++;
 ;		ld(a,@-1,p2);		
-__el033:
+__el035:
 	ld	a,@-1,p2
 ;		ld(a,@-1,p3);		
 	ld	a,@-1,p3
-;	}while(--cnt1);
-	dld	A,cnt1
-	bnz	__do032
-__od032:
+;
+;		dec_w(cnt1);
+	dec_w	cnt1
+;	}while(a!=0);
+	bnz	__do034
+__od034:
 ;}
 	ret
 ;
@@ -1248,11 +1290,11 @@ mp_sub:
 	ld	a, =0
 	st	a,r3
 ;
-;	cnt1=#PRECISION;
-	ld	a, =PRECISION
-	st	a,cnt1
+;	ea=#PRECISION;cnt1=ea;
+	ld	ea, =PRECISION
+	st	ea,cnt1
 ;	do {
-__do034:
+__do036:
 ;		// p2[0] -= p3[0];
 ;		a = *p2; r0 = a;
 	ld	a, 0,p2
@@ -1276,20 +1318,22 @@ __do034:
 	st	a,cyr1
 ;		a=e;if(a!=0) {cyr1=1;}
 	ld	a,e
-	bz	__el035
+	bz	__el037
 	ld	a, =1
 	st	a,cyr1
 ;
 ;		// p2-- p3--;
 ;		ld(a,@-1,p2);		
-__el035:
+__el037:
 	ld	a,@-1,p2
 ;		ld(a,@-1,p3);		
 	ld	a,@-1,p3
-;	}while(--cnt1);
-	dld	A,cnt1
-	bnz	__do034
-__od034:
+;
+;		dec_w(cnt1);
+	dec_w	cnt1
+;	}while(a!=0);
+	bnz	__do036
+__od036:
 ;}
 	ret
 ;/**********************************************************************
@@ -1299,10 +1343,6 @@ __od034:
 ;ea_mul10()
 ;{
 ea_mul10:
-;//	push(ea);
-;//		prhex4();
-;//		a='=';putc();
-;//	pop(ea);
 ;	// 乗算命令MPYはEAとTの内容を乗じて上位16 bitをEAに、下位16 bitをTに入れます。
 ;	// 演算は符号付きで行われます。
 ;	t=ea;
@@ -1312,12 +1352,28 @@ ea_mul10:
 	mpy	ea,t
 ;	ea=t;
 	ld	ea,t
-;//	push(ea);
-;//		prhex4();
-;//		a=';';putc();put_crlf();
-;//	pop(ea);
 ;}
 	ret
+;
+;/**********************************************************************
+; *  ea を 二乗する.
+; **********************************************************************
+; */
+;ea_mul_ea()
+;{
+ea_mul_ea:
+;	// 乗算命令MPYはEAとTの内容を乗じて上位16 bitをEAに、下位16 bitをTに入れます。
+;	// 演算は符号付きで行われます。
+;	t=ea;
+	ld	t,ea
+;		mpy(ea,t);
+	mpy	ea,t
+;	ea=t;
+	ld	ea,t
+;}
+	ret
+;
+;
 ;/**********************************************************************
 ; *  m0 を 10倍する.
 ; **********************************************************************
@@ -1346,11 +1402,11 @@ mp_mul10:
 	ld	a, =0
 	st	a,r3
 ;
-;	cnt1=#PRECISION;
-	ld	a, =PRECISION
-	st	a,cnt1
+;	ea=#PRECISION;cnt1=ea;
+	ld	ea, =PRECISION
+	st	ea,cnt1
 ;	do {
-__do036:
+__do038:
 ;		a = *p2; r0 = a;
 	ld	a, 0,p2
 	st	a,r0
@@ -1374,10 +1430,12 @@ __do036:
 ;		// p2--;
 ;		ld(a,@-1,p2);		
 	ld	a,@-1,p2
-;	}while(--cnt1);
-	dld	A,cnt1
-	bnz	__do036
-__od036:
+;
+;		dec_w(cnt1);
+	dec_w	cnt1
+;	}while(a!=0);
+	bnz	__do038
+__od038:
 ;}
 	ret
 ;
@@ -1398,13 +1456,15 @@ print_pi:
 	st	a,top1
 ;	
 ;//	for(i=0;i< (PRECISION*2+1) ;i++) {
-;	cnt3=#PRECISION;
-	ld	a, =PRECISION
-	st	a,cnt3
-;	ild(a,cnt3);
-	ild	a,cnt3
+;
+;	ea=#PRECISION;ea<<=1;ea+=1;
+	ld	ea, =PRECISION
+	sl	ea
+	add	ea, =1
+;	cnt3=ea;
+	st	ea,cnt3
 ;	do {
-__do037:
+__do039:
 ;		//a='+';pi_dump();
 ;		ea=#Pi;p2=ea;
 	ld	ea, =Pi
@@ -1420,7 +1480,7 @@ __do037:
 	jsr	mp_mul10
 ;		a=top1;if(a==0) {
 	ld	a,top1
-	bnz	__el038
+	bnz	__el040
 ;			top1=1;
 	ld	a, =1
 	st	a,top1
@@ -1440,8 +1500,8 @@ __do037:
 ;			pop(p2);
 	pop	p2
 ;		}else{
-	jmp	__fi038
-__el038:
+	jmp	__fi040
+__el040:
 ;			a=chr1;a+='0';putc();
 	ld	a,chr1
 	add	a, ='0'
@@ -1451,7 +1511,7 @@ __el038:
 ;			if(a>=10) {tab1=0;
 	sub	a, =10
 	bp	$+4
-	bra	__el039
+	bra	__el041
 	ld	a, =0
 	st	a,tab1
 ;				a=' ';putc();
@@ -1462,21 +1522,23 @@ __el038:
 ;				if(a>=5) {lf1=0;
 	sub	a, =5
 	bp	$+4
-	bra	__el040
+	bra	__el042
 	ld	a, =0
 	st	a,lf1
 ;					put_crlf();
 	jsr	put_crlf
 ;				}
 ;			}
-__el040:
+__el042:
 ;		}
-__el039:
-__fi038:
-;	}while(--cnt3);
-	dld	A,cnt3
-	bnz	__do037
-__od037:
+__el041:
+__fi040:
+;		dec_w(cnt3);
+	dec_w	cnt3
+;	}while(a!=0);
+	bnz	__do039
+__od039:
+;
 ;	put_crlf();
 	jsr	put_crlf
 ;}
@@ -1485,125 +1547,117 @@ __od037:
 ;/**********************************************************************
 ; *  ひとつのArcTan項を計算する ma = m * atan(1/n)
 ; **********************************************************************
-;    void calc_M_atan_1_N(int m,int n)
+;    void calc_M_atan_1_N(int m1,int n1)
 ; */
 ;calc_M_atan_1_N()
 ;{
 calc_M_atan_1_N:
-;// ma = m * (1/n)
-;	ea=#ma ; p2=ea;
-	ld	ea, =ma
-	ld	p2,ea
-;	a=0;e=a;a=m1  ; mp_set();
+;// n_2 = n1*n1
+;	e=0;a=n1; ea_mul_ea(); n_2=ea;
+	xch	e,a
 	ld	a, =0
-	ld	e,a
+	xch	e,a
+	ld	a,n1
+	jsr	ea_mul_ea
+	st	ea,n_2
+;	// p2=#n_2; a='*';p2_dump();
+;
+;// ma = m * (1/n)
+;	p2=#ma ; e=0;a=m1  ; mp_set();
+	ld	p2, =ma
+	xch	e,a
+	ld	a, =0
+	xch	e,a
 	ld	a,m1
 	jsr	mp_set
-;
-;	ea=#ma ; p2=ea;
-	ld	ea, =ma
-	ld	p2,ea
-;	a=0;e=a;a=n1  ; mp_div();
+;	p2=#ma ; e=0;a=n1  ; mp_div();
+	ld	p2, =ma
+	xch	e,a
 	ld	a, =0
-	ld	e,a
+	xch	e,a
 	ld	a,n1
 	jsr	mp_div
 ;
-;//	a='A'; ma_dump();
-;
 ;// mc = m * (1/n)
-;	ea=#mc ; p2=ea;
-	ld	ea, =mc
-	ld	p2,ea
-;	ea=#ma ; p3=ea;
-	ld	ea, =ma
-	ld	p3,ea
-;	mp_copy();			//	mc = ma;
+;	p2=#mc ; p3=#ma    ; mp_copy();		//	mc = ma;
+	ld	p2, =mc
+	ld	p3, =ma
 	jsr	mp_copy
-;
-;//	a='C'; mc_dump();
 ;
 ;// arctan(x) = x - (1/3)x**3 + (1/5)x**5 - (1/7)x**7 ・・・
 ;// LOOP: ma +-= mb
 ;
-;	indx0=3;
-	ld	a, =3
-	st	a,indx0
-;	indx1=0;
-	ld	a, =0
-	st	a,indx1
 ;	sign1=0;
 	ld	a, =0
 	st	a,sign1
 ;
-;	cnt3=120;
-	ld	a, =120
-	st	a,cnt3
-;	do {
-__do041:
+;	ea=3;indx0=ea; // indx0 = 3,5,7,9,11, ...
+	ld	ea, =3
+	st	ea,indx0
+;	while(1) {
+__wh043:
 ;		// mc = mc*(1/n)*(1/n)
-;		ea=#mc ; p2=ea;
-	ld	ea, =mc
-	ld	p2,ea
-;		a=0;e=a;a=n1;	mp_div();
+;		a=n_2;if(a==25) {
+	ld	a,n_2
+	sub	a, =25
+	bnz	__el044
+;			p2=#mc;	ea=n_2;   mp_div();			// mc = mc * (1/ (n*n) );
+	ld	p2, =mc
+	ld	ea,n_2
+	jsr	mp_div
+;		}else{
+	jmp	__fi044
+__el044:
+;			p2=#mc;	e=0;a=n1; mp_div();
+	ld	p2, =mc
+	xch	e,a
 	ld	a, =0
-	ld	e,a
+	xch	e,a
 	ld	a,n1
 	jsr	mp_div
-;		ea=#mc ; p2=ea;
-	ld	ea, =mc
-	ld	p2,ea
-;		a=0;e=a;a=n1;	mp_div();
+;			p2=#mc;	e=0;a=n1; mp_div();
+	ld	p2, =mc
+	xch	e,a
 	ld	a, =0
-	ld	e,a
+	xch	e,a
 	ld	a,n1
 	jsr	mp_div
-;
-;//		a='c'; mc_dump();
-;		
+;		}
+__fi044:
 ;		// mb = mc*(1/i)
-;		ea=#mb ; p2=ea;
-	ld	ea, =mb
-	ld	p2,ea
-;		ea=#mc ; p3=ea;
-	ld	ea, =mc
-	ld	p3,ea
-;		mp_copy();			//	mb = mc;
+;		p2=#mb ; p3=#mc ; mp_copy();		//	mb = mc;
+	ld	p2, =mb
+	ld	p3, =mc
 	jsr	mp_copy
-;
-;		ea=#mb ; p2=ea;
-	ld	ea, =mb
-	ld	p2,ea
-;		ea=indx0;mp_div();
+;		p2=#mb ; ea=indx0; mp_div();		//  mb /= indx0;
+	ld	p2, =mb
 	ld	ea,indx0
 	jsr	mp_div
 ;
-;//		a='b'; mb_dump();
+;		p2=#mb ; mp_zerochk(); if(a==0) break;
+	ld	p2, =mb
+	jsr	mp_zerochk
+	bz	__ew043
 ;		
-;//		if(mp_zerochk(mb,PRECISION-16)==0) break;
-;		
-;		ea=#ma ; p2=ea;
-	ld	ea, =ma
-	ld	p2,ea
-;		ea=#mb ; p3=ea;
-	ld	ea, =mb
-	ld	p3,ea
+;		p2=#ma ; p3=#mb ;
+	ld	p2, =ma
+	ld	p3, =mb
 ;
 ;		a=sign1;a ^= 1;sign1=a;
 	ld	a,sign1
 	xor	a, =1
 	st	a,sign1
 ;		if(a!=0) {
-	bz	__el042
-;			mp_sub();
+	bz	__el045
+;			mp_sub();	// ma += mb;
 	jsr	mp_sub
 ;		}else{
-	jmp	__fi042
-__el042:
-;			mp_add();
+	jmp	__fi045
+__el045:
+;			mp_add();	// ma -= mb;
 	jsr	mp_add
 ;		}
-__fi042:
+__fi045:
 ;
 ;		// indx0 += 2;
 ;		ea=indx0;ea+=2;
@@ -1611,11 +1665,10 @@ __fi042:
 	add	ea, =2
 ;		indx0=ea;
 	st	ea,indx0
+;	}
+	jmp	__wh043
+__ew043:
 ;
-;	}while(--cnt3);
-	dld	A,cnt3
-	bnz	__do041
-__od041:
 ;	a='A'; ma_dump();
 	ld	a, ='A'
 	jsr	ma_dump
@@ -1625,9 +1678,8 @@ __od041:
 ;dump_pi()
 ;{
 dump_pi:
-;	ea=#Pi;p2=ea;mdump(); //メモリーダンプの実行.
-	ld	ea, =Pi
-	ld	p2,ea
+;	p2=#Pi; mdump(); //メモリーダンプの実行.
+	ld	p2, =Pi
 	jsr	mdump
 ;}
 	ret
@@ -1646,13 +1698,9 @@ calc_pi:
 	st	a,n1
 ;	calc_M_atan_1_N();
 	jsr	calc_M_atan_1_N
-;	ea=#Pi ; p2=ea;
-	ld	ea, =Pi
-	ld	p2,ea
-;	ea=#ma ; p3=ea;
-	ld	ea, =ma
-	ld	p3,ea
-;	mp_copy();			//	*Pi = *ma;
+;	p2=#Pi ; p3=#ma ; mp_copy();		//	*Pi = *ma;
+	ld	p2, =Pi
+	ld	p3, =ma
 	jsr	mp_copy
 ;
 ;// -4 arctan(1/239)
@@ -1663,14 +1711,11 @@ calc_pi:
 	st	a,n1
 ;	calc_M_atan_1_N();
 	jsr	calc_M_atan_1_N
-;	ea=#Pi ; p2=ea;
-	ld	ea, =Pi
-	ld	p2,ea
-;	ea=#ma ; p3=ea;
-	ld	ea, =ma
-	ld	p3,ea
-;	mp_sub();			// *Pi -= *ma;
+;	p2=#Pi ; p3=#ma ; mp_sub();			// *Pi -= *ma;
+	ld	p2, =Pi
+	ld	p3, =ma
 	jsr	mp_sub
+;
 ;// ===> Pi
 ;}
 	ret
@@ -1682,6 +1727,10 @@ calc_pi:
 ;pi_main()
 ;{
 pi_main:
+;	p2=#PI_MSG_1;puts();	
+	ld	p2, =PI_MSG_1
+	jsr	puts
+;
 ;	// 円周率計算.
 ;	calc_pi();
 	jsr	calc_pi

@@ -712,6 +712,13 @@ int	expr(void)
 				twoop("ld",dst,src);
 				return(1);
 			  }
+			  // 代入先がEレジスタで、ソースはメモリーか即値.
+			  if(is_ereg(dst)) {
+				  twoop("xch","e","a");
+				  twoopImm("ld","a",src);
+				  twoop("xch","e","a");
+				  return(1);
+			  }
 			  if(strcmp(src,dst)!=0) {
 				twoopImm("ld",dst,src);
 				return(1);
