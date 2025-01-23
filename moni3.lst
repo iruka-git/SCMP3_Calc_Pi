@@ -1,4 +1,4 @@
- AS V1.42 Beta [Bld 269] - Source File moni3.asm - Page 1 - 2025年01月22日 16時09分20秒
+ AS V1.42 Beta [Bld 269] - Source File moni3.asm - Page 1 - 2025年01月23日 11時50分37秒
 
 
     1/   0 :                            ;/*
@@ -21,874 +21,1793 @@
    18/   0 :                            
    19/   0 :                            ; ------------
    20/   0 :                            ; ワークエリア
-   21/   0 : =0xFFA0                    q0 = 0xffa0
-   22/   0 : =0xFFA1                    q1 = 0xffa1
-   23/   0 : =0xFFA2                    q2 = 0xffa2
-   24/   0 : =0xFFA3                    q3 = 0xffa3
-   25/   0 : =0xFFA4                    q4 = 0xffa4
-   26/   0 : =0xFFA5                    q5 = 0xffa5
-   27/   0 :                            
-   28/   0 : =0xFFA8                    r0 = 0xffa8
-   29/   0 : =0xFFAA                    r1 = 0xffaa
-   30/   0 : =0xFFAC                    r2 = 0xffac
-   31/   0 : =0xFFAE                    r3 = 0xffae
-   32/   0 : =0xFFB0                    cyr0 = 0xffb0
-   33/   0 : =0xFFB1                    cyr1 = 0xffb1
-   34/   0 : =0xFFB2                    cyr2 = 0xffb2
-   35/   0 :                            
-   36/   0 :                            ;// スタート
-   37/   0 :                            ;	 nop;
-   38/   0 : 00                         	nop
-   39/   1 :                            ;	 sp=0x8000;
-   40/   1 : 25 00 80                   	ld	sp, =0x8000
-   41/   4 :                            ;	 jmp(main);
-   42/   4 : 24 0C 00                   	jmp	main
-   43/   7 :                            ;
-   44/   7 :                            ;getc()
-   45/   7 :                            ;{
-   46/   7 :                            getc:
-   47/   7 :                            ;     db(2);
-   48/   7 : 02                         	db	2
-   49/   8 :                            ;}
-   50/   8 : 5C                         	ret
-   51/   9 :                            ;putc()
-   52/   9 :                            ;{
-   53/   9 :                            putc:
-   54/   9 :                            ;     db(3);
-   55/   9 : 03                         	db	3
-   56/   A :                            ;}
-   57/   A : 5C                         	ret
-   58/   B :                            ;exit()
-   59/   B :                            ;{
-   60/   B :                            exit:
- AS V1.42 Beta [Bld 269] - Source File moni3.asm - Page 2 - 2025年01月22日 16時09分20秒
+   21/   0 :                            
+   22/   0 :                            ;; 除算ワーク. q0:q3 = 被除数 q4:q5 = 除数.
+   23/   0 : =0xFFA0                    q0 = 0xffa0
+   24/   0 : =0xFFA1                    q1 = 0xffa1
+   25/   0 : =0xFFA2                    q2 = 0xffa2
+   26/   0 : =0xFFA3                    q3 = 0xffa3
+   27/   0 : =0xFFA4                    q4 = 0xffa4
+   28/   0 : =0xFFA5                    q5 = 0xffa5
+   29/   0 :                            
+   30/   0 : =0xFFA8                    r0 = 0xffa8
+   31/   0 : =0xFFAA                    r1 = 0xffaa
+   32/   0 : =0xFFAC                    r2 = 0xffac
+   33/   0 : =0xFFAE                    r3 = 0xffae
+   34/   0 :                            
+   35/   0 :                            ;; CYフラグ代用
+   36/   0 : =0xFFB0                    cyr0 = 0xffb0
+   37/   0 : =0xFFB1                    cyr1 = 0xffb1
+   38/   0 : =0xFFB2                    cyr2 = 0xffb2
+   39/   0 :                            
+   40/   0 : =0xFFB3                    cnt3 = 0xffb3
+   41/   0 : =0xFFB4                    cnt4 = 0xffb4
+   42/   0 :                            
+   43/   0 : =0xFFB5                    indx0 = 0xffb5
+   44/   0 : =0xFFB6                    indx1 = 0xffb6
+   45/   0 :                            
+   46/   0 : =0xFFB7                    m1    = 0xffb7
+   47/   0 : =0xFFB8                    n1    = 0xffb8
+   48/   0 : =0xFFB9                    sign1 = 0xffb9
+   49/   0 : =0xFFBA                    tab1  = 0xffba
+   50/   0 : =0xFFBB                    lf1   = 0xffbb
+   51/   0 : =0xFFBC                    chr1  = 0xffbc
+   52/   0 : =0xFFBD                    top1  = 0xffbd
+   53/   0 :                            
+   54/   0 : =0xC8                      PRECISION = 200
+   55/   0 :                            
+   56/   0 :                            ;// スタート
+   57/   0 :                            ;	 nop;
+   58/   0 : 00                         	nop
+   59/   1 :                            ;	 sp=0x8000;
+   60/   1 : 25 00 80                   	ld	sp, =0x8000
+ AS V1.42 Beta [Bld 269] - Source File moni3.asm - Page 2 - 2025年01月23日 11時50分37秒
 
 
-   61/   B :                            ;     db(4);
-   62/   B : 04                         	db	4
-   63/   C :                            ;}
-   64/   C : 5C                         	ret
-   65/   D :                            ;
-   66/   D :                            ;// メイン
-   67/   D :                            ;main()
-   68/   D :                            ;{
-   69/   D :                            main:
-   70/   D :                            ;	p2=#msg1;puts();	
-   71/   D : 26 F1 01                   	ld	p2, =msg1
-   72/  10 : 20 CF 01                   	jsr	puts
-   73/  13 :                            ;
-   74/  13 :                            ;	div_test();
-   75/  13 : 20 CC 02                   	jsr	div_test
-   76/  16 :                            ;	
-   77/  16 :                            ;//	benchmark();
-   78/  16 :                            ;
-   79/  16 :                            ;	while(1) {	
-   80/  16 :                            __wh000:
-   81/  16 :                            ;		a='>';putc();
-   82/  16 : C4 3E                      	ld	a, ='>'
-   83/  18 : 20 08 00                   	jsr	putc
-   84/  1B :                            ;		p2=#inbuf;gets();
-   85/  1B : 26 0A 02                   	ld	p2, =inbuf
-   86/  1E : 20 D9 01                   	jsr	gets
-   87/  21 :                            ;
-   88/  21 :                            ;		// ECHO BACK.
-   89/  21 :                            ;		p2=#inbuf;puts();
-   90/  21 : 26 0A 02                   	ld	p2, =inbuf
-   91/  24 : 20 CF 01                   	jsr	puts
-   92/  27 :                            ;
-   93/  27 :                            ;		//
-   94/  27 :                            ;		p2=#inbuf;cmd();
-   95/  27 : 26 0A 02                   	ld	p2, =inbuf
-   96/  2A : 20 61 00                   	jsr	cmd
-   97/  2D :                            ;	}
-   98/  2D : 24 15 00                   	jmp	__wh000
-   99/  30 :                            __ew000:
-  100/  30 :                            ;	exit();
-  101/  30 : 20 0A 00                   	jsr	exit
-  102/  33 :                            ;}
-  103/  33 : 5C                         	ret
-  104/  34 :                            ;
-  105/  34 :                            ;benchmark()
-  106/  34 :                            ;{
-  107/  34 :                            benchmark:
-  108/  34 :                            ;	cnt1=0;
-  109/  34 : C4 00                      	ld	a, =0
-  110/  36 : CD 81                      	st	a,cnt1
-  111/  38 :                            ;	do {
-  112/  38 :                            __do001:
-  113/  38 :                            ;		cnt2=0;
-  114/  38 : C4 00                      	ld	a, =0
-  115/  3A : CD 82                      	st	a,cnt2
-  116/  3C :                            ;		do {
-  117/  3C :                            __do002:
-  118/  3C :                            ;			bench_subr();
-  119/  3C : 20 50 00                   	jsr	bench_subr
-  120/  3F :                            ;		}while(--cnt2);
- AS V1.42 Beta [Bld 269] - Source File moni3.asm - Page 3 - 2025年01月22日 16時09分20秒
+   61/   4 :                            ;	 jmp(main);
+   62/   4 : 24 0C 00                   	jmp	main
+   63/   7 :                            ;
+   64/   7 :                            ;getc()
+   65/   7 :                            ;{
+   66/   7 :                            getc:
+   67/   7 :                            ;     db(2);
+   68/   7 : 02                         	db	2
+   69/   8 :                            ;}
+   70/   8 : 5C                         	ret
+   71/   9 :                            ;putc()
+   72/   9 :                            ;{
+   73/   9 :                            putc:
+   74/   9 :                            ;     db(3);
+   75/   9 : 03                         	db	3
+   76/   A :                            ;}
+   77/   A : 5C                         	ret
+   78/   B :                            ;exit()
+   79/   B :                            ;{
+   80/   B :                            exit:
+   81/   B :                            ;     db(4);
+   82/   B : 04                         	db	4
+   83/   C :                            ;}
+   84/   C : 5C                         	ret
+   85/   D :                            ;
+   86/   D :                            ;// メイン
+   87/   D :                            ;main()
+   88/   D :                            ;{
+   89/   D :                            main:
+   90/   D :                            ;	p2=#msg1;puts();	
+   91/   D : 26 02 02                   	ld	p2, =msg1
+   92/  10 : 20 E0 01                   	jsr	puts
+   93/  13 :                            ;
+   94/  13 :                            ;	pi_main();
+   95/  13 : 20 BF 05                   	jsr	pi_main
+   96/  16 :                            ;	
+   97/  16 :                            ;//	benchmark();
+   98/  16 :                            ;
+   99/  16 :                            ;	while(1) {	
+  100/  16 :                            __wh000:
+  101/  16 :                            ;		a='>';putc();
+  102/  16 : C4 3E                      	ld	a, ='>'
+  103/  18 : 20 08 00                   	jsr	putc
+  104/  1B :                            ;		p2=#inbuf;gets();
+  105/  1B : 26 1B 02                   	ld	p2, =inbuf
+  106/  1E : 20 EA 01                   	jsr	gets
+  107/  21 :                            ;
+  108/  21 :                            ;		// ECHO BACK.
+  109/  21 :                            ;		p2=#inbuf;puts();
+  110/  21 : 26 1B 02                   	ld	p2, =inbuf
+  111/  24 : 20 E0 01                   	jsr	puts
+  112/  27 :                            ;
+  113/  27 :                            ;		//
+  114/  27 :                            ;		p2=#inbuf;cmd();
+  115/  27 : 26 1B 02                   	ld	p2, =inbuf
+  116/  2A : 20 61 00                   	jsr	cmd
+  117/  2D :                            ;	}
+  118/  2D : 24 15 00                   	jmp	__wh000
+  119/  30 :                            __ew000:
+  120/  30 :                            ;	exit();
+ AS V1.42 Beta [Bld 269] - Source File moni3.asm - Page 3 - 2025年01月23日 11時50分37秒
 
 
-  121/  3F : 9D 82                      	dld	A,cnt2
-  122/  41 : 7C F9                      	bnz	__do002
-  123/  43 :                            __od002:
-  124/  43 :                            ;	}while(--cnt1);
-  125/  43 : 9D 81                      	dld	A,cnt1
-  126/  45 : 7C F1                      	bnz	__do001
-  127/  47 :                            __od001:
-  128/  47 :                            ;	p2=#msg1;puts();	
-  129/  47 : 26 F1 01                   	ld	p2, =msg1
-  130/  4A : 20 CF 01                   	jsr	puts
-  131/  4D :                            ;	exit();
-  132/  4D : 20 0A 00                   	jsr	exit
-  133/  50 :                            ;}
-  134/  50 : 5C                         	ret
-  135/  51 :                            ;
-  136/  51 :                            ;bench_subr()
-  137/  51 :                            ;{
-  138/  51 :                            bench_subr:
-  139/  51 :                            ;	p4=0;
-  140/  51 : C4 00                      	ld	a, =0
-  141/  53 : CD 84                      	st	a,p4
-  142/  55 :                            ;	do {
-  143/  55 :                            __do003:
-  144/  55 :                            ;		bench_subr2();
-  145/  55 : 20 5C 00                   	jsr	bench_subr2
-  146/  58 :                            ;	}while(--p4);
-  147/  58 : 9D 84                      	dld	A,p4
-  148/  5A : 7C F9                      	bnz	__do003
-  149/  5C :                            __od003:
-  150/  5C :                            ;}
-  151/  5C : 5C                         	ret
-  152/  5D :                            ;bench_subr2()
-  153/  5D :                            ;{
-  154/  5D :                            bench_subr2:
-  155/  5D :                            ;	push(ea);
-  156/  5D : 08                         	push	ea
-  157/  5E :                            ;	push(ea);
-  158/  5E : 08                         	push	ea
-  159/  5F :                            ;	pop(ea);
-  160/  5F : 3A                         	pop	ea
-  161/  60 :                            ;	pop(ea);
-  162/  60 : 3A                         	pop	ea
-  163/  61 :                            ;}
-  164/  61 : 5C                         	ret
-  165/  62 :                            ;
-  166/  62 :                            ;// P2 ポインタの１行バッファをcmd解釈.
-  167/  62 :                            ;// ワーク：
-  168/  62 :                            ;//    p4 = readhex()の戻り値.
-  169/  62 :                            ;//    p5 = 注目メモリーアドレスを覚えておく.
-  170/  62 :                            ;cmd()
-  171/  62 :                            ;{
-  172/  62 :                            cmd:
-  173/  62 :                            ;	a=*p2++;lc();e=a;
-  174/  62 : C6 01                      	ld	a, @1,p2
-  175/  64 : 20 43 01                   	jsr	lc
-  176/  67 : 48                         	ld	e,a
-  177/  68 :                            ;	if(e=='d') {
-  178/  68 : 40                         	ld	a,e
-  179/  69 : FC 64                      	sub	a, ='d'
-  180/  6B : 7C 19                      	bnz	__el004
- AS V1.42 Beta [Bld 269] - Source File moni3.asm - Page 4 - 2025年01月22日 16時09分20秒
+  121/  30 : 20 0A 00                   	jsr	exit
+  122/  33 :                            ;}
+  123/  33 : 5C                         	ret
+  124/  34 :                            ;
+  125/  34 :                            ;benchmark()
+  126/  34 :                            ;{
+  127/  34 :                            benchmark:
+  128/  34 :                            ;	cnt1=0;
+  129/  34 : C4 00                      	ld	a, =0
+  130/  36 : CD 81                      	st	a,cnt1
+  131/  38 :                            ;	do {
+  132/  38 :                            __do001:
+  133/  38 :                            ;		cnt2=0;
+  134/  38 : C4 00                      	ld	a, =0
+  135/  3A : CD 82                      	st	a,cnt2
+  136/  3C :                            ;		do {
+  137/  3C :                            __do002:
+  138/  3C :                            ;			bench_subr();
+  139/  3C : 20 50 00                   	jsr	bench_subr
+  140/  3F :                            ;		}while(--cnt2);
+  141/  3F : 9D 82                      	dld	A,cnt2
+  142/  41 : 7C F9                      	bnz	__do002
+  143/  43 :                            __od002:
+  144/  43 :                            ;	}while(--cnt1);
+  145/  43 : 9D 81                      	dld	A,cnt1
+  146/  45 : 7C F1                      	bnz	__do001
+  147/  47 :                            __od001:
+  148/  47 :                            ;	p2=#msg1;puts();	
+  149/  47 : 26 02 02                   	ld	p2, =msg1
+  150/  4A : 20 E0 01                   	jsr	puts
+  151/  4D :                            ;	exit();
+  152/  4D : 20 0A 00                   	jsr	exit
+  153/  50 :                            ;}
+  154/  50 : 5C                         	ret
+  155/  51 :                            ;
+  156/  51 :                            ;bench_subr()
+  157/  51 :                            ;{
+  158/  51 :                            bench_subr:
+  159/  51 :                            ;	p4=0;
+  160/  51 : C4 00                      	ld	a, =0
+  161/  53 : CD 84                      	st	a,p4
+  162/  55 :                            ;	do {
+  163/  55 :                            __do003:
+  164/  55 :                            ;		bench_subr2();
+  165/  55 : 20 5C 00                   	jsr	bench_subr2
+  166/  58 :                            ;	}while(--p4);
+  167/  58 : 9D 84                      	dld	A,p4
+  168/  5A : 7C F9                      	bnz	__do003
+  169/  5C :                            __od003:
+  170/  5C :                            ;}
+  171/  5C : 5C                         	ret
+  172/  5D :                            ;bench_subr2()
+  173/  5D :                            ;{
+  174/  5D :                            bench_subr2:
+  175/  5D :                            ;	push(ea);
+  176/  5D : 08                         	push	ea
+  177/  5E :                            ;	push(ea);
+  178/  5E : 08                         	push	ea
+  179/  5F :                            ;	pop(ea);
+  180/  5F : 3A                         	pop	ea
+ AS V1.42 Beta [Bld 269] - Source File moni3.asm - Page 4 - 2025年01月23日 11時50分37秒
 
 
-  181/  6D :                            ;		sp_skip();
-  182/  6D : 20 8E 00                   	jsr	sp_skip
-  183/  70 :                            ;		readhex();
-  184/  70 : 20 A7 00                   	jsr	readhex
-  185/  73 :                            ;		if(a!=0) {
-  186/  73 : 6C 04                      	bz	__el005
-  187/  75 :                            ;			ea=p4;
-  188/  75 : 85 84                      	ld	ea,p4
-  189/  77 :                            ;			p5=ea;
-  190/  77 : 8D 86                      	st	ea,p5
-  191/  79 :                            ;		}
-  192/  79 :                            ;		ea=p5;p2=ea;mdump(); //メモリーダンプの実行.
-  193/  79 :                            __el005:
-  194/  79 : 85 86                      	ld	ea,p5
-  195/  7B : 46                         	ld	p2,ea
-  196/  7C : 20 56 01                   	jsr	mdump
-  197/  7F :                            ;
-  198/  7F :                            ;		ea=p5;ea+=0x100;p5=ea;
-  199/  7F : 85 86                      	ld	ea,p5
-  200/  81 : B4 00 01                   	add	ea, =0x100
-  201/  84 : 8D 86                      	st	ea,p5
-  202/  86 :                            ;	}	
-  203/  86 :                            ;	if(e=='q') {
-  204/  86 :                            __el004:
-  205/  86 : 40                         	ld	a,e
-  206/  87 : FC 71                      	sub	a, ='q'
-  207/  89 : 7C 03                      	bnz	__el006
-  208/  8B :                            ;		exit();
-  209/  8B : 20 0A 00                   	jsr	exit
-  210/  8E :                            ;	}	
-  211/  8E :                            ;}
-  212/  8E :                            __el006:
-  213/  8E : 5C                         	ret
-  214/  8F :                            ;
-  215/  8F :                            ;// ==========================================
-  216/  8F :                            ;// 入力関数
-  217/  8F :                            ;
-  218/  8F :                            ;// P2 ポインタの空白文字飛ばし.
-  219/  8F :                            ;sp_skip()
-  220/  8F :                            ;{
-  221/  8F :                            sp_skip:
-  222/  8F :                            ;	a=*p2;
-  223/  8F : C2 00                      	ld	a, 0,p2
-  224/  91 :                            ;	while(a==' ') {
-  225/  91 :                            __wh007:
-  226/  91 : FC 20                      	sub	a, =' '
-  227/  93 : 7C 07                      	bnz	__ew007
-  228/  95 :                            ;		a=*p2++;  // p2++ だけしたい.
-  229/  95 : C6 01                      	ld	a, @1,p2
-  230/  97 :                            ;		a=*p2;
-  231/  97 : C2 00                      	ld	a, 0,p2
-  232/  99 :                            ;	}
-  233/  99 : 24 90 00                   	jmp	__wh007
-  234/  9C :                            __ew007:
-  235/  9C :                            ;}
-  236/  9C : 5C                         	ret
-  237/  9D :                            ;
-  238/  9D :                            ;p4mul16()
-  239/  9D :                            ;{
-  240/  9D :                            p4mul16:
- AS V1.42 Beta [Bld 269] - Source File moni3.asm - Page 5 - 2025年01月22日 16時09分20秒
+  181/  60 :                            ;	pop(ea);
+  182/  60 : 3A                         	pop	ea
+  183/  61 :                            ;}
+  184/  61 : 5C                         	ret
+  185/  62 :                            ;
+  186/  62 :                            ;// P2 ポインタの１行バッファをcmd解釈.
+  187/  62 :                            ;// ワーク：
+  188/  62 :                            ;//    p4 = readhex()の戻り値.
+  189/  62 :                            ;//    p5 = 注目メモリーアドレスを覚えておく.
+  190/  62 :                            ;cmd()
+  191/  62 :                            ;{
+  192/  62 :                            cmd:
+  193/  62 :                            ;	a=*p2++;lc();e=a;
+  194/  62 : C6 01                      	ld	a, @1,p2
+  195/  64 : 20 43 01                   	jsr	lc
+  196/  67 : 48                         	ld	e,a
+  197/  68 :                            ;	if(e=='d') {
+  198/  68 : 40                         	ld	a,e
+  199/  69 : FC 64                      	sub	a, ='d'
+  200/  6B : 7C 19                      	bnz	__el004
+  201/  6D :                            ;		sp_skip();
+  202/  6D : 20 8E 00                   	jsr	sp_skip
+  203/  70 :                            ;		readhex();
+  204/  70 : 20 A7 00                   	jsr	readhex
+  205/  73 :                            ;		if(a!=0) {
+  206/  73 : 6C 04                      	bz	__el005
+  207/  75 :                            ;			ea=p4;
+  208/  75 : 85 84                      	ld	ea,p4
+  209/  77 :                            ;			p5=ea;
+  210/  77 : 8D 86                      	st	ea,p5
+  211/  79 :                            ;		}
+  212/  79 :                            ;		ea=p5;p2=ea;mdump(); //メモリーダンプの実行.
+  213/  79 :                            __el005:
+  214/  79 : 85 86                      	ld	ea,p5
+  215/  7B : 46                         	ld	p2,ea
+  216/  7C : 20 56 01                   	jsr	mdump
+  217/  7F :                            ;
+  218/  7F :                            ;		ea=p5;ea+=0x100;p5=ea;
+  219/  7F : 85 86                      	ld	ea,p5
+  220/  81 : B4 00 01                   	add	ea, =0x100
+  221/  84 : 8D 86                      	st	ea,p5
+  222/  86 :                            ;	}	
+  223/  86 :                            ;	if(e=='q') {
+  224/  86 :                            __el004:
+  225/  86 : 40                         	ld	a,e
+  226/  87 : FC 71                      	sub	a, ='q'
+  227/  89 : 7C 03                      	bnz	__el006
+  228/  8B :                            ;		exit();
+  229/  8B : 20 0A 00                   	jsr	exit
+  230/  8E :                            ;	}	
+  231/  8E :                            ;}
+  232/  8E :                            __el006:
+  233/  8E : 5C                         	ret
+  234/  8F :                            ;
+  235/  8F :                            ;// ==========================================
+  236/  8F :                            ;// 入力関数
+  237/  8F :                            ;
+  238/  8F :                            ;// P2 ポインタの空白文字飛ばし.
+  239/  8F :                            ;sp_skip()
+  240/  8F :                            ;{
+ AS V1.42 Beta [Bld 269] - Source File moni3.asm - Page 5 - 2025年01月23日 11時50分37秒
 
 
-  241/  9D :                            ;	push(ea);
-  242/  9D : 08                         	push	ea
-  243/  9E :                            ;	ea=p4;
-  244/  9E : 85 84                      	ld	ea,p4
-  245/  A0 :                            ;	sl(ea);
-  246/  A0 : 0F                         	sl	ea
-  247/  A1 :                            ;	sl(ea);
-  248/  A1 : 0F                         	sl	ea
-  249/  A2 :                            ;	sl(ea);
-  250/  A2 : 0F                         	sl	ea
-  251/  A3 :                            ;	sl(ea);
-  252/  A3 : 0F                         	sl	ea
-  253/  A4 :                            ;	p4=ea;
-  254/  A4 : 8D 84                      	st	ea,p4
-  255/  A6 :                            ;	pop(ea);
-  256/  A6 : 3A                         	pop	ea
-  257/  A7 :                            ;}
-  258/  A7 : 5C                         	ret
-  259/  A8 :                            ;
-  260/  A8 :                            ;// P2 ポインタから16進HEX読み. ==> p4に結果. 入力された桁数=Areg
-  261/  A8 :                            ;readhex()
-  262/  A8 :                            ;{
-  263/  A8 :                            readhex:
-  264/  A8 :                            ;	ea=0;
-  265/  A8 : 84 00 00                   	ld	ea, =0
-  266/  AB :                            ;	p4=ea;
-  267/  AB : 8D 84                      	st	ea,p4
-  268/  AD :                            ;	r4=a;
-  269/  AD : CD 83                      	st	a,r4
-  270/  AF :                            ;	while(1) {
-  271/  AF :                            __wh008:
-  272/  AF :                            ;		a=*p2++;e=a;
-  273/  AF : C6 01                      	ld	a, @1,p2
-  274/  B1 : 48                         	ld	e,a
-  275/  B2 :                            ;		readhex1();e=a;
-  276/  B2 : 20 D6 00                   	jsr	readhex1
-  277/  B5 : 48                         	ld	e,a
-  278/  B6 :                            ;		if(e!=0xff) {
-  279/  B6 : 40                         	ld	a,e
-  280/  B7 : FC FF                      	sub	a, =0xff
-  281/  B9 : 6C 15                      	bz	__el009
-  282/  BB :                            ;			p4mul16();
-  283/  BB : 20 9C 00                   	jsr	p4mul16
-  284/  BE :                            ;			a=e;
-  285/  BE : 40                         	ld	a,e
-  286/  BF :                            ;			e<>a; a=0; e<>a; //e=0;
-  287/  BF : 01                         	xch	e,a
-  288/  C0 : C4 00                      	ld	a, =0
-  289/  C2 : 01                         	xch	e,a
-  290/  C3 :                            ;			ea+=p4;
-  291/  C3 : B5 84                      	add	ea,p4
-  292/  C5 :                            ;			p4=ea;
-  293/  C5 : 8D 84                      	st	ea,p4
-  294/  C7 :                            ;			a=r4;a+=1;r4=a;
-  295/  C7 : C5 83                      	ld	a,r4
-  296/  C9 : F4 01                      	add	a, =1
-  297/  CB : CD 83                      	st	a,r4
-  298/  CD :                            ;		}else{
-  299/  CD : 24 D2 00                   	jmp	__fi009
-  300/  D0 :                            __el009:
- AS V1.42 Beta [Bld 269] - Source File moni3.asm - Page 6 - 2025年01月22日 16時09分20秒
+  241/  8F :                            sp_skip:
+  242/  8F :                            ;	a=*p2;
+  243/  8F : C2 00                      	ld	a, 0,p2
+  244/  91 :                            ;	while(a==' ') {
+  245/  91 :                            __wh007:
+  246/  91 : FC 20                      	sub	a, =' '
+  247/  93 : 7C 07                      	bnz	__ew007
+  248/  95 :                            ;		a=*p2++;  // p2++ だけしたい.
+  249/  95 : C6 01                      	ld	a, @1,p2
+  250/  97 :                            ;		a=*p2;
+  251/  97 : C2 00                      	ld	a, 0,p2
+  252/  99 :                            ;	}
+  253/  99 : 24 90 00                   	jmp	__wh007
+  254/  9C :                            __ew007:
+  255/  9C :                            ;}
+  256/  9C : 5C                         	ret
+  257/  9D :                            ;
+  258/  9D :                            ;p4mul16()
+  259/  9D :                            ;{
+  260/  9D :                            p4mul16:
+  261/  9D :                            ;	push(ea);
+  262/  9D : 08                         	push	ea
+  263/  9E :                            ;	ea=p4;
+  264/  9E : 85 84                      	ld	ea,p4
+  265/  A0 :                            ;	sl(ea);
+  266/  A0 : 0F                         	sl	ea
+  267/  A1 :                            ;	sl(ea);
+  268/  A1 : 0F                         	sl	ea
+  269/  A2 :                            ;	sl(ea);
+  270/  A2 : 0F                         	sl	ea
+  271/  A3 :                            ;	sl(ea);
+  272/  A3 : 0F                         	sl	ea
+  273/  A4 :                            ;	p4=ea;
+  274/  A4 : 8D 84                      	st	ea,p4
+  275/  A6 :                            ;	pop(ea);
+  276/  A6 : 3A                         	pop	ea
+  277/  A7 :                            ;}
+  278/  A7 : 5C                         	ret
+  279/  A8 :                            ;
+  280/  A8 :                            ;// P2 ポインタから16進HEX読み. ==> p4に結果. 入力された桁数=Areg
+  281/  A8 :                            ;readhex()
+  282/  A8 :                            ;{
+  283/  A8 :                            readhex:
+  284/  A8 :                            ;	ea=0;
+  285/  A8 : 84 00 00                   	ld	ea, =0
+  286/  AB :                            ;	p4=ea;
+  287/  AB : 8D 84                      	st	ea,p4
+  288/  AD :                            ;	r4=a;
+  289/  AD : CD 83                      	st	a,r4
+  290/  AF :                            ;	while(1) {
+  291/  AF :                            __wh008:
+  292/  AF :                            ;		a=*p2++;e=a;
+  293/  AF : C6 01                      	ld	a, @1,p2
+  294/  B1 : 48                         	ld	e,a
+  295/  B2 :                            ;		readhex1();e=a;
+  296/  B2 : 20 D6 00                   	jsr	readhex1
+  297/  B5 : 48                         	ld	e,a
+  298/  B6 :                            ;		if(e!=0xff) {
+  299/  B6 : 40                         	ld	a,e
+  300/  B7 : FC FF                      	sub	a, =0xff
+ AS V1.42 Beta [Bld 269] - Source File moni3.asm - Page 6 - 2025年01月23日 11時50分37秒
 
 
-  301/  D0 :                            ;			a=r4;
-  302/  D0 : C5 83                      	ld	a,r4
-  303/  D2 :                            ;			return;
-  304/  D2 : 5C                         	ret
-  305/  D3 :                            ;		}
-  306/  D3 :                            __fi009:
-  307/  D3 :                            ;	}
-  308/  D3 : 24 AE 00                   	jmp	__wh008
-  309/  D6 :                            __ew008:
-  310/  D6 :                            ;}
-  311/  D6 : 5C                         	ret
-  312/  D7 :                            ;
-  313/  D7 :                            ;readhex1()
-  314/  D7 :                            ;{
-  315/  D7 :                            readhex1:
-  316/  D7 :                            ;	lc();e=a;
-  317/  D7 : 20 43 01                   	jsr	lc
-  318/  DA : 48                         	ld	e,a
-  319/  DB :                            ;	if(e>='0') {
-  320/  DB : 40                         	ld	a,e
-  321/  DC : FC 30                      	sub	a, ='0'
-  322/  DE : 64 02                      	bp	$+4
-  323/  E0 : 74 09                      	bra	__el010
-  324/  E2 :                            ;		if(e<0x3a) { // <='9'
-  325/  E2 : 40                         	ld	a,e
-  326/  E3 : FC 3A                      	sub	a, =0x3a
-  327/  E5 : 64 04                      	bp	__el011
-  328/  E7 :                            ;			a=e;
-  329/  E7 : 40                         	ld	a,e
-  330/  E8 :                            ;			a-=0x30;
-  331/  E8 : FC 30                      	sub	a, =0x30
-  332/  EA :                            ;			return;
-  333/  EA : 5C                         	ret
-  334/  EB :                            ;		}
-  335/  EB :                            ;	}
-  336/  EB :                            __el011:
-  337/  EB :                            ;	if(e>='a') {
-  338/  EB :                            __el010:
-  339/  EB : 40                         	ld	a,e
-  340/  EC : FC 61                      	sub	a, ='a'
-  341/  EE : 64 02                      	bp	$+4
-  342/  F0 : 74 09                      	bra	__el012
-  343/  F2 :                            ;		if(e<'g') {
-  344/  F2 : 40                         	ld	a,e
-  345/  F3 : FC 67                      	sub	a, ='g'
-  346/  F5 : 64 04                      	bp	__el013
-  347/  F7 :                            ;			a=e;
-  348/  F7 : 40                         	ld	a,e
-  349/  F8 :                            ;			a-=0x57;  // 0x61 - 10
-  350/  F8 : FC 57                      	sub	a, =0x57
-  351/  FA :                            ;			return;
-  352/  FA : 5C                         	ret
-  353/  FB :                            ;		}
-  354/  FB :                            ;	}
-  355/  FB :                            __el013:
-  356/  FB :                            ;	a=0xff;
-  357/  FB :                            __el012:
-  358/  FB : C4 FF                      	ld	a, =0xff
-  359/  FD :                            ;}
-  360/  FD : 5C                         	ret
- AS V1.42 Beta [Bld 269] - Source File moni3.asm - Page 7 - 2025年01月22日 16時09分20秒
+  301/  B9 : 6C 15                      	bz	__el009
+  302/  BB :                            ;			p4mul16();
+  303/  BB : 20 9C 00                   	jsr	p4mul16
+  304/  BE :                            ;			a=e;
+  305/  BE : 40                         	ld	a,e
+  306/  BF :                            ;			e<>a; a=0; e<>a; //e=0;
+  307/  BF : 01                         	xch	e,a
+  308/  C0 : C4 00                      	ld	a, =0
+  309/  C2 : 01                         	xch	e,a
+  310/  C3 :                            ;			ea+=p4;
+  311/  C3 : B5 84                      	add	ea,p4
+  312/  C5 :                            ;			p4=ea;
+  313/  C5 : 8D 84                      	st	ea,p4
+  314/  C7 :                            ;			a=r4;a+=1;r4=a;
+  315/  C7 : C5 83                      	ld	a,r4
+  316/  C9 : F4 01                      	add	a, =1
+  317/  CB : CD 83                      	st	a,r4
+  318/  CD :                            ;		}else{
+  319/  CD : 24 D2 00                   	jmp	__fi009
+  320/  D0 :                            __el009:
+  321/  D0 :                            ;			a=r4;
+  322/  D0 : C5 83                      	ld	a,r4
+  323/  D2 :                            ;			return;
+  324/  D2 : 5C                         	ret
+  325/  D3 :                            ;		}
+  326/  D3 :                            __fi009:
+  327/  D3 :                            ;	}
+  328/  D3 : 24 AE 00                   	jmp	__wh008
+  329/  D6 :                            __ew008:
+  330/  D6 :                            ;}
+  331/  D6 : 5C                         	ret
+  332/  D7 :                            ;
+  333/  D7 :                            ;readhex1()
+  334/  D7 :                            ;{
+  335/  D7 :                            readhex1:
+  336/  D7 :                            ;	lc();e=a;
+  337/  D7 : 20 43 01                   	jsr	lc
+  338/  DA : 48                         	ld	e,a
+  339/  DB :                            ;	if(e>='0') {
+  340/  DB : 40                         	ld	a,e
+  341/  DC : FC 30                      	sub	a, ='0'
+  342/  DE : 64 02                      	bp	$+4
+  343/  E0 : 74 09                      	bra	__el010
+  344/  E2 :                            ;		if(e<0x3a) { // <='9'
+  345/  E2 : 40                         	ld	a,e
+  346/  E3 : FC 3A                      	sub	a, =0x3a
+  347/  E5 : 64 04                      	bp	__el011
+  348/  E7 :                            ;			a=e;
+  349/  E7 : 40                         	ld	a,e
+  350/  E8 :                            ;			a-=0x30;
+  351/  E8 : FC 30                      	sub	a, =0x30
+  352/  EA :                            ;			return;
+  353/  EA : 5C                         	ret
+  354/  EB :                            ;		}
+  355/  EB :                            ;	}
+  356/  EB :                            __el011:
+  357/  EB :                            ;	if(e>='a') {
+  358/  EB :                            __el010:
+  359/  EB : 40                         	ld	a,e
+  360/  EC : FC 61                      	sub	a, ='a'
+ AS V1.42 Beta [Bld 269] - Source File moni3.asm - Page 7 - 2025年01月23日 11時50分37秒
 
 
-  361/  FE :                            ;
-  362/  FE :                            ;
-  363/  FE :                            ;// ==========================================
-  364/  FE :                            ;// 出力関数
-  365/  FE :                            ;
-  366/  FE :                            ;//  アスキーダンプ１行
-  367/  FE :                            ;ascdump_16()
-  368/  FE :                            ;{
-  369/  FE :                            ascdump_16:
-  370/  FE :                            ;	push(p2);
-  371/  FE : 56                         	push	p2
-  372/  FF :                            ;	p2=ea;
-  373/  FF : 46                         	ld	p2,ea
-  374/ 100 :                            ;	ascdump_8();
-  375/ 100 : 20 0A 01                   	jsr	ascdump_8
-  376/ 103 :                            ;	pr_spc();
-  377/ 103 : 20 BE 01                   	jsr	pr_spc
-  378/ 106 :                            ;	ascdump_8();
-  379/ 106 : 20 0A 01                   	jsr	ascdump_8
-  380/ 109 :                            ;	pop(p2);
-  381/ 109 : 5E                         	pop	p2
-  382/ 10A :                            ;}
-  383/ 10A : 5C                         	ret
-  384/ 10B :                            ;
-  385/ 10B :                            ;//  アスキーダンプ8byte
-  386/ 10B :                            ;ascdump_8()
-  387/ 10B :                            ;{
-  388/ 10B :                            ascdump_8:
-  389/ 10B :                            ;	a=8;cnt2=a;
-  390/ 10B : C4 08                      	ld	a, =8
-  391/ 10D : CD 82                      	st	a,cnt2
-  392/ 10F :                            ;	do {
-  393/ 10F :                            __do014:
-  394/ 10F :                            ;		a=*p2++;
-  395/ 10F : C6 01                      	ld	a, @1,p2
-  396/ 111 :                            ;		ascdump1();
-  397/ 111 : 20 18 01                   	jsr	ascdump1
-  398/ 114 :                            ;	} while(--cnt2);
-  399/ 114 : 9D 82                      	dld	A,cnt2
-  400/ 116 : 7C F7                      	bnz	__do014
-  401/ 118 :                            __od014:
-  402/ 118 :                            ;}
-  403/ 118 : 5C                         	ret
-  404/ 119 :                            ;
-  405/ 119 :                            ;//  アスキーダンプ1byte
-  406/ 119 :                            ;ascdump1()
-  407/ 119 :                            ;{
-  408/ 119 :                            ascdump1:
-  409/ 119 :                            ;	e=a;
-  410/ 119 : 48                         	ld	e,a
-  411/ 11A :                            ;	if(e<0x20) {
-  412/ 11A : 40                         	ld	a,e
-  413/ 11B : FC 20                      	sub	a, =0x20
-  414/ 11D : 64 03                      	bp	__el015
-  415/ 11F :                            ;		a=' ';e=a;
-  416/ 11F : C4 20                      	ld	a, =' '
-  417/ 121 : 48                         	ld	e,a
-  418/ 122 :                            ;	}
-  419/ 122 :                            ;	if(e>=0x7f) {
-  420/ 122 :                            __el015:
- AS V1.42 Beta [Bld 269] - Source File moni3.asm - Page 8 - 2025年01月22日 16時09分20秒
+  361/  EE : 64 02                      	bp	$+4
+  362/  F0 : 74 09                      	bra	__el012
+  363/  F2 :                            ;		if(e<'g') {
+  364/  F2 : 40                         	ld	a,e
+  365/  F3 : FC 67                      	sub	a, ='g'
+  366/  F5 : 64 04                      	bp	__el013
+  367/  F7 :                            ;			a=e;
+  368/  F7 : 40                         	ld	a,e
+  369/  F8 :                            ;			a-=0x57;  // 0x61 - 10
+  370/  F8 : FC 57                      	sub	a, =0x57
+  371/  FA :                            ;			return;
+  372/  FA : 5C                         	ret
+  373/  FB :                            ;		}
+  374/  FB :                            ;	}
+  375/  FB :                            __el013:
+  376/  FB :                            ;	a=0xff;
+  377/  FB :                            __el012:
+  378/  FB : C4 FF                      	ld	a, =0xff
+  379/  FD :                            ;}
+  380/  FD : 5C                         	ret
+  381/  FE :                            ;
+  382/  FE :                            ;
+  383/  FE :                            ;// ==========================================
+  384/  FE :                            ;// 出力関数
+  385/  FE :                            ;
+  386/  FE :                            ;//  アスキーダンプ１行
+  387/  FE :                            ;ascdump_16()
+  388/  FE :                            ;{
+  389/  FE :                            ascdump_16:
+  390/  FE :                            ;	push(p2);
+  391/  FE : 56                         	push	p2
+  392/  FF :                            ;	p2=ea;
+  393/  FF : 46                         	ld	p2,ea
+  394/ 100 :                            ;	ascdump_8();
+  395/ 100 : 20 0A 01                   	jsr	ascdump_8
+  396/ 103 :                            ;	pr_spc();
+  397/ 103 : 20 CF 01                   	jsr	pr_spc
+  398/ 106 :                            ;	ascdump_8();
+  399/ 106 : 20 0A 01                   	jsr	ascdump_8
+  400/ 109 :                            ;	pop(p2);
+  401/ 109 : 5E                         	pop	p2
+  402/ 10A :                            ;}
+  403/ 10A : 5C                         	ret
+  404/ 10B :                            ;
+  405/ 10B :                            ;//  アスキーダンプ8byte
+  406/ 10B :                            ;ascdump_8()
+  407/ 10B :                            ;{
+  408/ 10B :                            ascdump_8:
+  409/ 10B :                            ;	a=8;cnt2=a;
+  410/ 10B : C4 08                      	ld	a, =8
+  411/ 10D : CD 82                      	st	a,cnt2
+  412/ 10F :                            ;	do {
+  413/ 10F :                            __do014:
+  414/ 10F :                            ;		a=*p2++;
+  415/ 10F : C6 01                      	ld	a, @1,p2
+  416/ 111 :                            ;		ascdump1();
+  417/ 111 : 20 18 01                   	jsr	ascdump1
+  418/ 114 :                            ;	} while(--cnt2);
+  419/ 114 : 9D 82                      	dld	A,cnt2
+  420/ 116 : 7C F7                      	bnz	__do014
+ AS V1.42 Beta [Bld 269] - Source File moni3.asm - Page 8 - 2025年01月23日 11時50分37秒
 
 
-  421/ 122 : 40                         	ld	a,e
-  422/ 123 : FC 7F                      	sub	a, =0x7f
-  423/ 125 : 64 02                      	bp	$+4
-  424/ 127 : 74 03                      	bra	__el016
-  425/ 129 :                            ;		a=' ';e=a;
-  426/ 129 : C4 20                      	ld	a, =' '
-  427/ 12B : 48                         	ld	e,a
-  428/ 12C :                            ;	}
-  429/ 12C :                            ;	a=e;putc();
-  430/ 12C :                            __el016:
-  431/ 12C : 40                         	ld	a,e
-  432/ 12D : 20 08 00                   	jsr	putc
-  433/ 130 :                            ;}
-  434/ 130 : 5C                         	ret
-  435/ 131 :                            ;
-  436/ 131 :                            ;//  大文字にする.
-  437/ 131 :                            ;uc()
-  438/ 131 :                            ;{
-  439/ 131 :                            uc:
-  440/ 131 :                            ;	e=a;
-  441/ 131 : 48                         	ld	e,a
-  442/ 132 :                            ;	if(e>='a') {
-  443/ 132 : 40                         	ld	a,e
-  444/ 133 : FC 61                      	sub	a, ='a'
-  445/ 135 : 64 02                      	bp	$+4
-  446/ 137 : 74 09                      	bra	__el017
-  447/ 139 :                            ;		if(e<0x7b) {  // <='z'
-  448/ 139 : 40                         	ld	a,e
-  449/ 13A : FC 7B                      	sub	a, =0x7b
-  450/ 13C : 64 04                      	bp	__el018
-  451/ 13E :                            ;			a=e;
-  452/ 13E : 40                         	ld	a,e
-  453/ 13F :                            ;			a-=0x20;
-  454/ 13F : FC 20                      	sub	a, =0x20
-  455/ 141 :                            ;			return;
-  456/ 141 : 5C                         	ret
-  457/ 142 :                            ;		}
-  458/ 142 :                            ;	}
-  459/ 142 :                            __el018:
-  460/ 142 :                            ;	a=e;
-  461/ 142 :                            __el017:
-  462/ 142 : 40                         	ld	a,e
-  463/ 143 :                            ;}
-  464/ 143 : 5C                         	ret
-  465/ 144 :                            ;
-  466/ 144 :                            ;//  小文字にする.
-  467/ 144 :                            ;lc()
-  468/ 144 :                            ;{
-  469/ 144 :                            lc:
-  470/ 144 :                            ;	e=a;
-  471/ 144 : 48                         	ld	e,a
-  472/ 145 :                            ;	if(e>='A') {
-  473/ 145 : 40                         	ld	a,e
-  474/ 146 : FC 41                      	sub	a, ='A'
-  475/ 148 : 64 02                      	bp	$+4
-  476/ 14A : 74 09                      	bra	__el019
-  477/ 14C :                            ;		if(e<0x5b) {  // <='Z'
-  478/ 14C : 40                         	ld	a,e
-  479/ 14D : FC 5B                      	sub	a, =0x5b
-  480/ 14F : 64 04                      	bp	__el020
- AS V1.42 Beta [Bld 269] - Source File moni3.asm - Page 9 - 2025年01月22日 16時09分20秒
+  421/ 118 :                            __od014:
+  422/ 118 :                            ;}
+  423/ 118 : 5C                         	ret
+  424/ 119 :                            ;
+  425/ 119 :                            ;//  アスキーダンプ1byte
+  426/ 119 :                            ;ascdump1()
+  427/ 119 :                            ;{
+  428/ 119 :                            ascdump1:
+  429/ 119 :                            ;	e=a;
+  430/ 119 : 48                         	ld	e,a
+  431/ 11A :                            ;	if(e<0x20) {
+  432/ 11A : 40                         	ld	a,e
+  433/ 11B : FC 20                      	sub	a, =0x20
+  434/ 11D : 64 03                      	bp	__el015
+  435/ 11F :                            ;		a=' ';e=a;
+  436/ 11F : C4 20                      	ld	a, =' '
+  437/ 121 : 48                         	ld	e,a
+  438/ 122 :                            ;	}
+  439/ 122 :                            ;	if(e>=0x7f) {
+  440/ 122 :                            __el015:
+  441/ 122 : 40                         	ld	a,e
+  442/ 123 : FC 7F                      	sub	a, =0x7f
+  443/ 125 : 64 02                      	bp	$+4
+  444/ 127 : 74 03                      	bra	__el016
+  445/ 129 :                            ;		a=' ';e=a;
+  446/ 129 : C4 20                      	ld	a, =' '
+  447/ 12B : 48                         	ld	e,a
+  448/ 12C :                            ;	}
+  449/ 12C :                            ;	a=e;putc();
+  450/ 12C :                            __el016:
+  451/ 12C : 40                         	ld	a,e
+  452/ 12D : 20 08 00                   	jsr	putc
+  453/ 130 :                            ;}
+  454/ 130 : 5C                         	ret
+  455/ 131 :                            ;
+  456/ 131 :                            ;//  大文字にする.
+  457/ 131 :                            ;uc()
+  458/ 131 :                            ;{
+  459/ 131 :                            uc:
+  460/ 131 :                            ;	e=a;
+  461/ 131 : 48                         	ld	e,a
+  462/ 132 :                            ;	if(e>='a') {
+  463/ 132 : 40                         	ld	a,e
+  464/ 133 : FC 61                      	sub	a, ='a'
+  465/ 135 : 64 02                      	bp	$+4
+  466/ 137 : 74 09                      	bra	__el017
+  467/ 139 :                            ;		if(e<0x7b) {  // <='z'
+  468/ 139 : 40                         	ld	a,e
+  469/ 13A : FC 7B                      	sub	a, =0x7b
+  470/ 13C : 64 04                      	bp	__el018
+  471/ 13E :                            ;			a=e;
+  472/ 13E : 40                         	ld	a,e
+  473/ 13F :                            ;			a-=0x20;
+  474/ 13F : FC 20                      	sub	a, =0x20
+  475/ 141 :                            ;			return;
+  476/ 141 : 5C                         	ret
+  477/ 142 :                            ;		}
+  478/ 142 :                            ;	}
+  479/ 142 :                            __el018:
+  480/ 142 :                            ;	a=e;
+ AS V1.42 Beta [Bld 269] - Source File moni3.asm - Page 9 - 2025年01月23日 11時50分37秒
 
 
-  481/ 151 :                            ;			a=e;
-  482/ 151 : 40                         	ld	a,e
-  483/ 152 :                            ;			a+=0x20;
-  484/ 152 : F4 20                      	add	a, =0x20
-  485/ 154 :                            ;			return;
-  486/ 154 : 5C                         	ret
-  487/ 155 :                            ;		}
-  488/ 155 :                            ;	}
-  489/ 155 :                            __el020:
-  490/ 155 :                            ;	a=e;
-  491/ 155 :                            __el019:
-  492/ 155 : 40                         	ld	a,e
-  493/ 156 :                            ;}
-  494/ 156 : 5C                         	ret
-  495/ 157 :                            ;
-  496/ 157 :                            ;
-  497/ 157 :                            ;//  メモリーダンプ
-  498/ 157 :                            ;mdump()
-  499/ 157 :                            ;{
-  500/ 157 :                            mdump:
-  501/ 157 :                            ;	a=16;cnt1=a;
-  502/ 157 : C4 10                      	ld	a, =16
-  503/ 159 : CD 81                      	st	a,cnt1
-  504/ 15B :                            ;	do {
-  505/ 15B :                            __do021:
-  506/ 15B :                            ;		mdump_16();
-  507/ 15B : 20 62 01                   	jsr	mdump_16
-  508/ 15E :                            ;	} while(--cnt1);
-  509/ 15E : 9D 81                      	dld	A,cnt1
-  510/ 160 : 7C F9                      	bnz	__do021
-  511/ 162 :                            __od021:
-  512/ 162 :                            ;}
-  513/ 162 : 5C                         	ret
-  514/ 163 :                            ;
-  515/ 163 :                            ;//  メモリーダンプ16byte
-  516/ 163 :                            ;mdump_16()
-  517/ 163 :                            ;{
-  518/ 163 :                            mdump_16:
-  519/ 163 :                            ;	ea=p2;
-  520/ 163 : 32                         	ld	ea,p2
-  521/ 164 :                            ;	prhex4();
-  522/ 164 : 20 8E 01                   	jsr	prhex4
-  523/ 167 :                            ;	pr_spc();
-  524/ 167 : 20 BE 01                   	jsr	pr_spc
-  525/ 16A :                            ;
-  526/ 16A :                            ;	mdump_8();
-  527/ 16A : 20 7D 01                   	jsr	mdump_8
-  528/ 16D :                            ;	pr_spc();
-  529/ 16D : 20 BE 01                   	jsr	pr_spc
-  530/ 170 :                            ;	mdump_8();
-  531/ 170 : 20 7D 01                   	jsr	mdump_8
-  532/ 173 :                            ;
-  533/ 173 :                            ;// ASCII DUMP
-  534/ 173 :                            ;	ea=p2;ea-=16;
-  535/ 173 : 32                         	ld	ea,p2
-  536/ 174 : BC 10 00                   	sub	ea, =16
-  537/ 177 :                            ;	ascdump_16();
-  538/ 177 : 20 FD 00                   	jsr	ascdump_16
-  539/ 17A :                            ;
-  540/ 17A :                            ;	put_crlf();
- AS V1.42 Beta [Bld 269] - Source File moni3.asm - Page 10 - 2025年01月22日 16時09分20秒
+  481/ 142 :                            __el017:
+  482/ 142 : 40                         	ld	a,e
+  483/ 143 :                            ;}
+  484/ 143 : 5C                         	ret
+  485/ 144 :                            ;
+  486/ 144 :                            ;//  小文字にする.
+  487/ 144 :                            ;lc()
+  488/ 144 :                            ;{
+  489/ 144 :                            lc:
+  490/ 144 :                            ;	e=a;
+  491/ 144 : 48                         	ld	e,a
+  492/ 145 :                            ;	if(e>='A') {
+  493/ 145 : 40                         	ld	a,e
+  494/ 146 : FC 41                      	sub	a, ='A'
+  495/ 148 : 64 02                      	bp	$+4
+  496/ 14A : 74 09                      	bra	__el019
+  497/ 14C :                            ;		if(e<0x5b) {  // <='Z'
+  498/ 14C : 40                         	ld	a,e
+  499/ 14D : FC 5B                      	sub	a, =0x5b
+  500/ 14F : 64 04                      	bp	__el020
+  501/ 151 :                            ;			a=e;
+  502/ 151 : 40                         	ld	a,e
+  503/ 152 :                            ;			a+=0x20;
+  504/ 152 : F4 20                      	add	a, =0x20
+  505/ 154 :                            ;			return;
+  506/ 154 : 5C                         	ret
+  507/ 155 :                            ;		}
+  508/ 155 :                            ;	}
+  509/ 155 :                            __el020:
+  510/ 155 :                            ;	a=e;
+  511/ 155 :                            __el019:
+  512/ 155 : 40                         	ld	a,e
+  513/ 156 :                            ;}
+  514/ 156 : 5C                         	ret
+  515/ 157 :                            ;
+  516/ 157 :                            ;
+  517/ 157 :                            ;//  メモリーダンプ
+  518/ 157 :                            ;mdump()
+  519/ 157 :                            ;{
+  520/ 157 :                            mdump:
+  521/ 157 :                            ;	a=16;cnt1=a;
+  522/ 157 : C4 10                      	ld	a, =16
+  523/ 159 : CD 81                      	st	a,cnt1
+  524/ 15B :                            ;	do {
+  525/ 15B :                            __do021:
+  526/ 15B :                            ;		mdump_16();
+  527/ 15B : 20 62 01                   	jsr	mdump_16
+  528/ 15E :                            ;	} while(--cnt1);
+  529/ 15E : 9D 81                      	dld	A,cnt1
+  530/ 160 : 7C F9                      	bnz	__do021
+  531/ 162 :                            __od021:
+  532/ 162 :                            ;}
+  533/ 162 : 5C                         	ret
+  534/ 163 :                            ;
+  535/ 163 :                            ;//  メモリーダンプ16byte
+  536/ 163 :                            ;mdump_16()
+  537/ 163 :                            ;{
+  538/ 163 :                            mdump_16:
+  539/ 163 :                            ;	ea=p2;
+  540/ 163 : 32                         	ld	ea,p2
+ AS V1.42 Beta [Bld 269] - Source File moni3.asm - Page 10 - 2025年01月23日 11時50分37秒
 
 
-  541/ 17A : 20 C4 01                   	jsr	put_crlf
-  542/ 17D :                            ;}
-  543/ 17D : 5C                         	ret
-  544/ 17E :                            ;
-  545/ 17E :                            ;//  メモリーダンプ8byte
-  546/ 17E :                            ;mdump_8()
-  547/ 17E :                            ;{
-  548/ 17E :                            mdump_8:
-  549/ 17E :                            ;	a=8;cnt2=a;
-  550/ 17E : C4 08                      	ld	a, =8
-  551/ 180 : CD 82                      	st	a,cnt2
-  552/ 182 :                            ;	do {
-  553/ 182 :                            __do022:
-  554/ 182 :                            ;		a=*p2++;
-  555/ 182 : C6 01                      	ld	a, @1,p2
-  556/ 184 :                            ;		prhex2();
-  557/ 184 : 20 97 01                   	jsr	prhex2
-  558/ 187 :                            ;		pr_spc();
-  559/ 187 : 20 BE 01                   	jsr	pr_spc
-  560/ 18A :                            ;	} while(--cnt2);
-  561/ 18A : 9D 82                      	dld	A,cnt2
-  562/ 18C : 7C F4                      	bnz	__do022
-  563/ 18E :                            __od022:
-  564/ 18E :                            ;}
-  565/ 18E : 5C                         	ret
-  566/ 18F :                            ;
-  567/ 18F :                            ;//  EAレジスタを16進4桁表示
-  568/ 18F :                            ;prhex4()
-  569/ 18F :                            ;{
-  570/ 18F :                            prhex4:
-  571/ 18F :                            ;	a<>e;
-  572/ 18F : 01                         	xch	a,e
-  573/ 190 :                            ;	prhex2();
-  574/ 190 : 20 97 01                   	jsr	prhex2
-  575/ 193 :                            ;	a<>e;
-  576/ 193 : 01                         	xch	a,e
-  577/ 194 :                            ;	prhex2();
-  578/ 194 : 20 97 01                   	jsr	prhex2
-  579/ 197 :                            ;}
-  580/ 197 : 5C                         	ret
-  581/ 198 :                            ;
-  582/ 198 :                            ;//  Aレジスタを16進2桁表示
-  583/ 198 :                            ;prhex2()
-  584/ 198 :                            ;{
-  585/ 198 :                            prhex2:
-  586/ 198 :                            ;	push(ea);
-  587/ 198 : 08                         	push	ea
-  588/ 199 :                            ;	e=a;
-  589/ 199 : 48                         	ld	e,a
-  590/ 19A :                            ;	a>>=1;
-  591/ 19A : 3C                         	sr	a
-  592/ 19B :                            ;	a>>=1;
-  593/ 19B : 3C                         	sr	a
-  594/ 19C :                            ;	a>>=1;
-  595/ 19C : 3C                         	sr	a
-  596/ 19D :                            ;	a>>=1;
-  597/ 19D : 3C                         	sr	a
-  598/ 19E :                            ;	prhex1();
-  599/ 19E : 20 A6 01                   	jsr	prhex1
-  600/ 1A1 :                            ;
- AS V1.42 Beta [Bld 269] - Source File moni3.asm - Page 11 - 2025年01月22日 16時09分20秒
+  541/ 164 :                            ;	prhex4();
+  542/ 164 : 20 9F 01                   	jsr	prhex4
+  543/ 167 :                            ;	pr_spc();
+  544/ 167 : 20 CF 01                   	jsr	pr_spc
+  545/ 16A :                            ;
+  546/ 16A :                            ;	mdump_8();
+  547/ 16A : 20 7D 01                   	jsr	mdump_8
+  548/ 16D :                            ;	pr_spc();
+  549/ 16D : 20 CF 01                   	jsr	pr_spc
+  550/ 170 :                            ;	mdump_8();
+  551/ 170 : 20 7D 01                   	jsr	mdump_8
+  552/ 173 :                            ;
+  553/ 173 :                            ;// ASCII DUMP
+  554/ 173 :                            ;	ea=p2;ea-=16;
+  555/ 173 : 32                         	ld	ea,p2
+  556/ 174 : BC 10 00                   	sub	ea, =16
+  557/ 177 :                            ;	ascdump_16();
+  558/ 177 : 20 FD 00                   	jsr	ascdump_16
+  559/ 17A :                            ;
+  560/ 17A :                            ;	put_crlf();
+  561/ 17A : 20 D5 01                   	jsr	put_crlf
+  562/ 17D :                            ;}
+  563/ 17D : 5C                         	ret
+  564/ 17E :                            ;
+  565/ 17E :                            ;//  メモリーダンプ8byte
+  566/ 17E :                            ;mdump_8()
+  567/ 17E :                            ;{
+  568/ 17E :                            mdump_8:
+  569/ 17E :                            ;	a=8;cnt2=a;
+  570/ 17E : C4 08                      	ld	a, =8
+  571/ 180 : CD 82                      	st	a,cnt2
+  572/ 182 :                            ;	do {
+  573/ 182 :                            __do022:
+  574/ 182 :                            ;		a=*p2++;
+  575/ 182 : C6 01                      	ld	a, @1,p2
+  576/ 184 :                            ;		prhex2();
+  577/ 184 : 20 A8 01                   	jsr	prhex2
+  578/ 187 :                            ;		pr_spc();
+  579/ 187 : 20 CF 01                   	jsr	pr_spc
+  580/ 18A :                            ;	} while(--cnt2);
+  581/ 18A : 9D 82                      	dld	A,cnt2
+  582/ 18C : 7C F4                      	bnz	__do022
+  583/ 18E :                            __od022:
+  584/ 18E :                            ;}
+  585/ 18E : 5C                         	ret
+  586/ 18F :                            ;
+  587/ 18F :                            ;//  メモリーダンプ8byte
+  588/ 18F :                            ;mdump_b16()
+  589/ 18F :                            ;{
+  590/ 18F :                            mdump_b16:
+  591/ 18F :                            ;	a=16;cnt2=a;
+  592/ 18F : C4 10                      	ld	a, =16
+  593/ 191 : CD 82                      	st	a,cnt2
+  594/ 193 :                            ;	do {
+  595/ 193 :                            __do023:
+  596/ 193 :                            ;		a=*p2++;
+  597/ 193 : C6 01                      	ld	a, @1,p2
+  598/ 195 :                            ;		prhex2();
+  599/ 195 : 20 A8 01                   	jsr	prhex2
+  600/ 198 :                            ;		pr_spc();
+ AS V1.42 Beta [Bld 269] - Source File moni3.asm - Page 11 - 2025年01月23日 11時50分37秒
 
 
-  601/ 1A1 :                            ;	a=e;
-  602/ 1A1 : 40                         	ld	a,e
-  603/ 1A2 :                            ;	prhex1();
-  604/ 1A2 : 20 A6 01                   	jsr	prhex1
-  605/ 1A5 :                            ;	pop(ea);
-  606/ 1A5 : 3A                         	pop	ea
-  607/ 1A6 :                            ;}
-  608/ 1A6 : 5C                         	ret
-  609/ 1A7 :                            ;
-  610/ 1A7 :                            ;//  Aレジスタ下位4bitのみを16進1桁表示
-  611/ 1A7 :                            ;prhex1()
-  612/ 1A7 :                            ;{
-  613/ 1A7 :                            prhex1:
-  614/ 1A7 :                            ;	push(ea);
-  615/ 1A7 : 08                         	push	ea
-  616/ 1A8 :                            ;	a&=0x0f;
-  617/ 1A8 : D4 0F                      	and	a, =0x0f
-  618/ 1AA :                            ;	e=a;
-  619/ 1AA : 48                         	ld	e,a
-  620/ 1AB :                            ;	if( a >= 10) {
-  621/ 1AB : FC 0A                      	sub	a, =10
-  622/ 1AD : 64 02                      	bp	$+4
-  623/ 1AF : 74 06                      	bra	__el023
-  624/ 1B1 :                            ;		a=e;a+=7;
-  625/ 1B1 : 40                         	ld	a,e
-  626/ 1B2 : F4 07                      	add	a, =7
-  627/ 1B4 :                            ;	}else{
-  628/ 1B4 : 24 B7 01                   	jmp	__fi023
-  629/ 1B7 :                            __el023:
-  630/ 1B7 :                            ;		a=e;
-  631/ 1B7 : 40                         	ld	a,e
-  632/ 1B8 :                            ;	}
-  633/ 1B8 :                            __fi023:
-  634/ 1B8 :                            ;	a += 0x30;
-  635/ 1B8 : F4 30                      	add	a, =0x30
-  636/ 1BA :                            ;	putc();
-  637/ 1BA : 20 08 00                   	jsr	putc
-  638/ 1BD :                            ;	pop(ea);
-  639/ 1BD : 3A                         	pop	ea
-  640/ 1BE :                            ;}
-  641/ 1BE : 5C                         	ret
-  642/ 1BF :                            ;//  空白文字を1つ出力
-  643/ 1BF :                            ;pr_spc()
-  644/ 1BF :                            ;{
-  645/ 1BF :                            pr_spc:
-  646/ 1BF :                            ;	a=' ';putc();
-  647/ 1BF : C4 20                      	ld	a, =' '
-  648/ 1C1 : 20 08 00                   	jsr	putc
-  649/ 1C4 :                            ;}
-  650/ 1C4 : 5C                         	ret
-  651/ 1C5 :                            ;
-  652/ 1C5 :                            ;//  改行コード出力
-  653/ 1C5 :                            ;put_crlf()
-  654/ 1C5 :                            ;{
-  655/ 1C5 :                            put_crlf:
-  656/ 1C5 :                            ;	a=0x0d;putc();
-  657/ 1C5 : C4 0D                      	ld	a, =0x0d
-  658/ 1C7 : 20 08 00                   	jsr	putc
-  659/ 1CA :                            ;	a=0x0a;putc();
-  660/ 1CA : C4 0A                      	ld	a, =0x0a
- AS V1.42 Beta [Bld 269] - Source File moni3.asm - Page 12 - 2025年01月22日 16時09分20秒
+  601/ 198 : 20 CF 01                   	jsr	pr_spc
+  602/ 19B :                            ;	} while(--cnt2);
+  603/ 19B : 9D 82                      	dld	A,cnt2
+  604/ 19D : 7C F4                      	bnz	__do023
+  605/ 19F :                            __od023:
+  606/ 19F :                            ;}
+  607/ 19F : 5C                         	ret
+  608/ 1A0 :                            ;
+  609/ 1A0 :                            ;//  EAレジスタを16進4桁表示
+  610/ 1A0 :                            ;prhex4()
+  611/ 1A0 :                            ;{
+  612/ 1A0 :                            prhex4:
+  613/ 1A0 :                            ;	a<>e;
+  614/ 1A0 : 01                         	xch	a,e
+  615/ 1A1 :                            ;	prhex2();
+  616/ 1A1 : 20 A8 01                   	jsr	prhex2
+  617/ 1A4 :                            ;	a<>e;
+  618/ 1A4 : 01                         	xch	a,e
+  619/ 1A5 :                            ;	prhex2();
+  620/ 1A5 : 20 A8 01                   	jsr	prhex2
+  621/ 1A8 :                            ;}
+  622/ 1A8 : 5C                         	ret
+  623/ 1A9 :                            ;
+  624/ 1A9 :                            ;//  Aレジスタを16進2桁表示
+  625/ 1A9 :                            ;prhex2()
+  626/ 1A9 :                            ;{
+  627/ 1A9 :                            prhex2:
+  628/ 1A9 :                            ;	push(ea);
+  629/ 1A9 : 08                         	push	ea
+  630/ 1AA :                            ;	e=a;
+  631/ 1AA : 48                         	ld	e,a
+  632/ 1AB :                            ;	a>>=1;
+  633/ 1AB : 3C                         	sr	a
+  634/ 1AC :                            ;	a>>=1;
+  635/ 1AC : 3C                         	sr	a
+  636/ 1AD :                            ;	a>>=1;
+  637/ 1AD : 3C                         	sr	a
+  638/ 1AE :                            ;	a>>=1;
+  639/ 1AE : 3C                         	sr	a
+  640/ 1AF :                            ;	prhex1();
+  641/ 1AF : 20 B7 01                   	jsr	prhex1
+  642/ 1B2 :                            ;
+  643/ 1B2 :                            ;	a=e;
+  644/ 1B2 : 40                         	ld	a,e
+  645/ 1B3 :                            ;	prhex1();
+  646/ 1B3 : 20 B7 01                   	jsr	prhex1
+  647/ 1B6 :                            ;	pop(ea);
+  648/ 1B6 : 3A                         	pop	ea
+  649/ 1B7 :                            ;}
+  650/ 1B7 : 5C                         	ret
+  651/ 1B8 :                            ;
+  652/ 1B8 :                            ;//  Aレジスタ下位4bitのみを16進1桁表示
+  653/ 1B8 :                            ;prhex1()
+  654/ 1B8 :                            ;{
+  655/ 1B8 :                            prhex1:
+  656/ 1B8 :                            ;	push(ea);
+  657/ 1B8 : 08                         	push	ea
+  658/ 1B9 :                            ;	a&=0x0f;
+  659/ 1B9 : D4 0F                      	and	a, =0x0f
+  660/ 1BB :                            ;	e=a;
+ AS V1.42 Beta [Bld 269] - Source File moni3.asm - Page 12 - 2025年01月23日 11時50分37秒
 
 
-  661/ 1CC : 20 08 00                   	jsr	putc
-  662/ 1CF :                            ;}
-  663/ 1CF : 5C                         	ret
-  664/ 1D0 :                            ;
-  665/ 1D0 :                            ;//  文字列出力( P2 )ヌル終端.
-  666/ 1D0 :                            ;puts()
-  667/ 1D0 :                            ;{
-  668/ 1D0 :                            puts:
-  669/ 1D0 :                            ;	do {
-  670/ 1D0 :                            __do024:
-  671/ 1D0 :                            ;		a=*p2++;
-  672/ 1D0 : C6 01                      	ld	a, @1,p2
-  673/ 1D2 :                            ;		if(a==0) break;
-  674/ 1D2 : 6C 05                      	bz	__od024
-  675/ 1D4 :                            ;		putc();
-  676/ 1D4 : 20 08 00                   	jsr	putc
-  677/ 1D7 :                            ;	}while(1);	
-  678/ 1D7 : 74 F7                      	bra	__do024
-  679/ 1D9 :                            __od024:
-  680/ 1D9 :                            ;}
-  681/ 1D9 : 5C                         	ret
-  682/ 1DA :                            ;
-  683/ 1DA :                            ;//  文字列入力( P2 ) 0x0a + ヌル終端.
-  684/ 1DA :                            ;gets()
-  685/ 1DA :                            ;{
-  686/ 1DA :                            gets:
-  687/ 1DA :                            ;	do {
-  688/ 1DA :                            __do025:
-  689/ 1DA :                            ;		getc();
-  690/ 1DA : 20 06 00                   	jsr	getc
-  691/ 1DD :                            ;		*p2++=a;
-  692/ 1DD : CE 01                      	st	a, @1,p2
-  693/ 1DF :                            ;		e=a;
-  694/ 1DF : 48                         	ld	e,a
-  695/ 1E0 :                            ;		if(e==0x0a) break;
-  696/ 1E0 : 40                         	ld	a,e
-  697/ 1E1 : FC 0A                      	sub	a, =0x0a
-  698/ 1E3 : 6C 07                      	bz	__od025
-  699/ 1E5 :                            ;		if(e==0x0d) break;
-  700/ 1E5 : 40                         	ld	a,e
-  701/ 1E6 : FC 0D                      	sub	a, =0x0d
-  702/ 1E8 : 6C 02                      	bz	__od025
-  703/ 1EA :                            ;	}while(1);	
-  704/ 1EA : 74 EE                      	bra	__do025
-  705/ 1EC :                            __od025:
-  706/ 1EC :                            ;
-  707/ 1EC :                            ;	a=0; *p2++=a;
-  708/ 1EC : C4 00                      	ld	a, =0
-  709/ 1EE : CE 01                      	st	a, @1,p2
-  710/ 1F0 :                            ;}
-  711/ 1F0 : 5C                         	ret
-  712/ 1F1 :                            ;
-  713/ 1F1 :                            ;//  文字列サンプル
-  714/ 1F1 :                            ;msg1:
-  715/ 1F1 :                            msg1:
-  716/ 1F1 :                            ;	db(" * SC/MP-III Monitor *");
-  717/ 1F1 : 20 2A 20 53 43 2F 4D 50 2D 	db	" * SC/MP-III Monitor *"
-       1FA : 49 49 49 20 4D 6F 6E 69 74
-       203 : 6F 72 20 2A               
-  718/ 207 :                            ;	db(0x0d);
- AS V1.42 Beta [Bld 269] - Source File moni3.asm - Page 13 - 2025年01月22日 16時09分20秒
+  661/ 1BB : 48                         	ld	e,a
+  662/ 1BC :                            ;	if( a >= 10) {
+  663/ 1BC : FC 0A                      	sub	a, =10
+  664/ 1BE : 64 02                      	bp	$+4
+  665/ 1C0 : 74 06                      	bra	__el024
+  666/ 1C2 :                            ;		a=e;a+=7;
+  667/ 1C2 : 40                         	ld	a,e
+  668/ 1C3 : F4 07                      	add	a, =7
+  669/ 1C5 :                            ;	}else{
+  670/ 1C5 : 24 C8 01                   	jmp	__fi024
+  671/ 1C8 :                            __el024:
+  672/ 1C8 :                            ;		a=e;
+  673/ 1C8 : 40                         	ld	a,e
+  674/ 1C9 :                            ;	}
+  675/ 1C9 :                            __fi024:
+  676/ 1C9 :                            ;	a += 0x30;
+  677/ 1C9 : F4 30                      	add	a, =0x30
+  678/ 1CB :                            ;	putc();
+  679/ 1CB : 20 08 00                   	jsr	putc
+  680/ 1CE :                            ;	pop(ea);
+  681/ 1CE : 3A                         	pop	ea
+  682/ 1CF :                            ;}
+  683/ 1CF : 5C                         	ret
+  684/ 1D0 :                            ;//  空白文字を1つ出力
+  685/ 1D0 :                            ;pr_spc()
+  686/ 1D0 :                            ;{
+  687/ 1D0 :                            pr_spc:
+  688/ 1D0 :                            ;	a=' ';putc();
+  689/ 1D0 : C4 20                      	ld	a, =' '
+  690/ 1D2 : 20 08 00                   	jsr	putc
+  691/ 1D5 :                            ;}
+  692/ 1D5 : 5C                         	ret
+  693/ 1D6 :                            ;
+  694/ 1D6 :                            ;//  改行コード出力
+  695/ 1D6 :                            ;put_crlf()
+  696/ 1D6 :                            ;{
+  697/ 1D6 :                            put_crlf:
+  698/ 1D6 :                            ;	a=0x0d;putc();
+  699/ 1D6 : C4 0D                      	ld	a, =0x0d
+  700/ 1D8 : 20 08 00                   	jsr	putc
+  701/ 1DB :                            ;	a=0x0a;putc();
+  702/ 1DB : C4 0A                      	ld	a, =0x0a
+  703/ 1DD : 20 08 00                   	jsr	putc
+  704/ 1E0 :                            ;}
+  705/ 1E0 : 5C                         	ret
+  706/ 1E1 :                            ;
+  707/ 1E1 :                            ;//  文字列出力( P2 )ヌル終端.
+  708/ 1E1 :                            ;puts()
+  709/ 1E1 :                            ;{
+  710/ 1E1 :                            puts:
+  711/ 1E1 :                            ;	do {
+  712/ 1E1 :                            __do025:
+  713/ 1E1 :                            ;		a=*p2++;
+  714/ 1E1 : C6 01                      	ld	a, @1,p2
+  715/ 1E3 :                            ;		if(a==0) break;
+  716/ 1E3 : 6C 05                      	bz	__od025
+  717/ 1E5 :                            ;		putc();
+  718/ 1E5 : 20 08 00                   	jsr	putc
+  719/ 1E8 :                            ;	}while(1);	
+  720/ 1E8 : 74 F7                      	bra	__do025
+ AS V1.42 Beta [Bld 269] - Source File moni3.asm - Page 13 - 2025年01月23日 11時50分37秒
 
 
-  719/ 207 : 0D                         	db	0x0d
-  720/ 208 :                            ;	db(0x0a);
-  721/ 208 : 0A                         	db	0x0a
-  722/ 209 :                            ;	db(0);
-  723/ 209 : 00                         	db	0
-  724/ 20A :                            ;
-  725/ 20A :                            ;inbuf:
-  726/ 20A :                            inbuf:
-  727/ 20A :                            ;	ds(128);
-  728/ 20A :                            	ds	128
-  729/ 28A :                            ;
-  730/ 28A :                            ;bufend:
-  731/ 28A :                            bufend:
-  732/ 28A :                            ;	db(0);
-  733/ 28A : 00                         	db	0
-  734/ 28B :                            ;
-  735/ 28B :                            ;
-  736/ 28B :                            ;// CALC PI //
-  737/ 28B :                            ;
-  738/ 28B :                            ;// 割り算=========
-  739/ 28B :                            ;// q0/q4
-  740/ 28B :                            ;
-  741/ 28B :                            ;div32_16()
-  742/ 28B :                            ;{
-  743/ 28B :                            div32_16:
-  744/ 28B :                            ;	cnt1=16;
-  745/ 28B : C4 10                      	ld	a, =16
-  746/ 28D : CD 81                      	st	a,cnt1
-  747/ 28F :                            ;
-  748/ 28F :                            ;	cyr0=0;
-  749/ 28F : C4 00                      	ld	a, =0
-  750/ 291 : CD B0                      	st	a,cyr0
-  751/ 293 :                            ;	cyr1=0;
-  752/ 293 : C4 00                      	ld	a, =0
-  753/ 295 : CD B1                      	st	a,cyr1
-  754/ 297 :                            ;	cyr2=0;
-  755/ 297 : C4 00                      	ld	a, =0
-  756/ 299 : CD B2                      	st	a,cyr2
-  757/ 29B :                            ;
-  758/ 29B :                            ;	do {
-  759/ 29B :                            __do026:
-  760/ 29B :                            ;
-  761/ 29B :                            ;// === q0:q3 の32bit を左シフト(2倍)
-  762/ 29B :                            ;		// q0 <<=1
-  763/ 29B :                            ;		ea=q0;ea+=q0;
-  764/ 29B : 85 A0                      	ld	ea,q0
-  765/ 29D : B5 A0                      	add	ea,q0
-  766/ 29F :                            ;		q0=ea;
-  767/ 29F : 8D A0                      	st	ea,q0
-  768/ 2A1 :                            ;		// sr = CY(bit7)
-  769/ 2A1 :                            ;		a=0;e=a;
-  770/ 2A1 : C4 00                      	ld	a, =0
-  771/ 2A3 : 48                         	ld	e,a
-  772/ 2A4 :                            ;		a=s;sl(ea);cyr0=ea;
-  773/ 2A4 : 06                         	ld	a,s
-  774/ 2A5 : 0F                         	sl	ea
-  775/ 2A6 : 8D B0                      	st	ea,cyr0
-  776/ 2A8 :                            ;
-  777/ 2A8 :                            ;		// q2 <<=1 : q2+= .CY
-  778/ 2A8 :                            ;		ea=q2;ea+=q2;ea+=cyr1;
- AS V1.42 Beta [Bld 269] - Source File moni3.asm - Page 14 - 2025年01月22日 16時09分20秒
+  721/ 1EA :                            __od025:
+  722/ 1EA :                            ;}
+  723/ 1EA : 5C                         	ret
+  724/ 1EB :                            ;
+  725/ 1EB :                            ;//  文字列入力( P2 ) 0x0a + ヌル終端.
+  726/ 1EB :                            ;gets()
+  727/ 1EB :                            ;{
+  728/ 1EB :                            gets:
+  729/ 1EB :                            ;	do {
+  730/ 1EB :                            __do026:
+  731/ 1EB :                            ;		getc();
+  732/ 1EB : 20 06 00                   	jsr	getc
+  733/ 1EE :                            ;		*p2++=a;
+  734/ 1EE : CE 01                      	st	a, @1,p2
+  735/ 1F0 :                            ;		e=a;
+  736/ 1F0 : 48                         	ld	e,a
+  737/ 1F1 :                            ;		if(e==0x0a) break;
+  738/ 1F1 : 40                         	ld	a,e
+  739/ 1F2 : FC 0A                      	sub	a, =0x0a
+  740/ 1F4 : 6C 07                      	bz	__od026
+  741/ 1F6 :                            ;		if(e==0x0d) break;
+  742/ 1F6 : 40                         	ld	a,e
+  743/ 1F7 : FC 0D                      	sub	a, =0x0d
+  744/ 1F9 : 6C 02                      	bz	__od026
+  745/ 1FB :                            ;	}while(1);	
+  746/ 1FB : 74 EE                      	bra	__do026
+  747/ 1FD :                            __od026:
+  748/ 1FD :                            ;
+  749/ 1FD :                            ;	a=0; *p2++=a;
+  750/ 1FD : C4 00                      	ld	a, =0
+  751/ 1FF : CE 01                      	st	a, @1,p2
+  752/ 201 :                            ;}
+  753/ 201 : 5C                         	ret
+  754/ 202 :                            ;
+  755/ 202 :                            ;//  文字列サンプル
+  756/ 202 :                            ;msg1:
+  757/ 202 :                            msg1:
+  758/ 202 :                            ;	db(" * SC/MP-III Monitor *");
+  759/ 202 : 20 2A 20 53 43 2F 4D 50 2D 	db	" * SC/MP-III Monitor *"
+       20B : 49 49 49 20 4D 6F 6E 69 74
+       214 : 6F 72 20 2A               
+  760/ 218 :                            ;	db(0x0d);
+  761/ 218 : 0D                         	db	0x0d
+  762/ 219 :                            ;	db(0x0a);
+  763/ 219 : 0A                         	db	0x0a
+  764/ 21A :                            ;	db(0);
+  765/ 21A : 00                         	db	0
+  766/ 21B :                            ;
+  767/ 21B :                            ;inbuf:
+  768/ 21B :                            inbuf:
+  769/ 21B :                            ;	ds(128);
+  770/ 21B :                            	ds	128
+  771/ 29B :                            ;
+  772/ 29B :                            ;bufend:
+  773/ 29B :                            bufend:
+  774/ 29B :                            ;	db(0);
+  775/ 29B : 00                         	db	0
+  776/ 29C :                            ;
+  777/ 29C :                            ;PI_EQU_1:
+  778/ 29C :                            PI_EQU_1:
+ AS V1.42 Beta [Bld 269] - Source File moni3.asm - Page 14 - 2025年01月23日 11時50分37秒
 
 
-  779/ 2A8 : 85 A2                      	ld	ea,q2
-  780/ 2AA : B5 A2                      	add	ea,q2
-  781/ 2AC : B5 B1                      	add	ea,cyr1
-  782/ 2AE :                            ;		q2=ea;
-  783/ 2AE : 8D A2                      	st	ea,q2
-  784/ 2B0 :                            ;// === q2:q3 の16bit から q4:q5の16bit が減算できるなら減算する.
-  785/ 2B0 :                            ;		ea-=q4;push(ea);
-  786/ 2B0 : BD A4                      	sub	ea,q4
-  787/ 2B2 : 08                         	push	ea
-  788/ 2B3 :                            ;		a=e;if(a>=0) {
-  789/ 2B3 : 40                         	ld	a,e
-  790/ 2B4 : FC 00                      	sub	a, =0
-  791/ 2B6 : 64 02                      	bp	$+4
-  792/ 2B8 : 74 0D                      	bra	__el027
-  793/ 2BA :                            ;			pop(ea);
-  794/ 2BA : 3A                         	pop	ea
-  795/ 2BB :                            ;			q2=ea; //減算結果をq2に書き戻す.
-  796/ 2BB : 8D A2                      	st	ea,q2
-  797/ 2BD :                            ;			// q0++
-  798/ 2BD :                            ;			ea=q0;ea+=1;q0=ea;
-  799/ 2BD : 85 A0                      	ld	ea,q0
-  800/ 2BF : B4 01 00                   	add	ea, =1
-  801/ 2C2 : 8D A0                      	st	ea,q0
-  802/ 2C4 :                            ;		}else{
-  803/ 2C4 : 24 C7 02                   	jmp	__fi027
-  804/ 2C7 :                            __el027:
-  805/ 2C7 :                            ;			pop(ea);//減算結果を破棄する.
-  806/ 2C7 : 3A                         	pop	ea
-  807/ 2C8 :                            ;		}
-  808/ 2C8 :                            __fi027:
-  809/ 2C8 :                            ;	}while(--cnt1);	
-  810/ 2C8 : 9D 81                      	dld	A,cnt1
-  811/ 2CA : 7C CF                      	bnz	__do026
-  812/ 2CC :                            __od026:
-  813/ 2CC :                            ;}
-  814/ 2CC : 5C                         	ret
-  815/ 2CD :                            ;
-  816/ 2CD :                            ;// 割り算テスト
-  817/ 2CD :                            ;div_test()
-  818/ 2CD :                            ;{
-  819/ 2CD :                            div_test:
-  820/ 2CD :                            ;	// q0 = 12345
-  821/ 2CD :                            ;	ea=12345;q0=ea;
-  822/ 2CD : 84 39 30                   	ld	ea, =12345
-  823/ 2D0 : 8D A0                      	st	ea,q0
-  824/ 2D2 :                            ;	ea=0    ;q2=ea;
-  825/ 2D2 : 84 00 00                   	ld	ea, =0
-  826/ 2D5 : 8D A2                      	st	ea,q2
-  827/ 2D7 :                            ;
-  828/ 2D7 :                            ;	// q4 = 10
-  829/ 2D7 :                            ;	ea=10   ;q4=ea;
-  830/ 2D7 : 84 0A 00                   	ld	ea, =10
-  831/ 2DA : 8D A4                      	st	ea,q4
-  832/ 2DC :                            ;
-  833/ 2DC :                            ;	// q0/q4
-  834/ 2DC :                            ;	div32_16();
-  835/ 2DC : 20 8A 02                   	jsr	div32_16
-  836/ 2DF :                            ;
-  837/ 2DF :                            ;	ea=#q0;p2=ea;mdump(); //メモリーダンプの実行.
-  838/ 2DF : 84 A0 FF                   	ld	ea, =q0
- AS V1.42 Beta [Bld 269] - Source File moni3.asm - Page 15 - 2025年01月22日 16時09分20秒
+  779/ 29C :                            ;	db("PI = ");
+  780/ 29C : 50 49 20 3D 20             	db	"PI = "
+  781/ 2A1 :                            ;	db(0);
+  782/ 2A1 : 00                         	db	0
+  783/ 2A2 :                            ;
+  784/ 2A2 :                            ;PI_EQU_2:
+  785/ 2A2 :                            PI_EQU_2:
+  786/ 2A2 :                            ;	db(" + ");
+  787/ 2A2 : 20 2B 20                   	db	" + "
+  788/ 2A5 :                            ;	db(0x0d);
+  789/ 2A5 : 0D                         	db	0x0d
+  790/ 2A6 :                            ;	db(0x0a);
+  791/ 2A6 : 0A                         	db	0x0a
+  792/ 2A7 :                            ;	db(0);
+  793/ 2A7 : 00                         	db	0
+  794/ 2A8 :                            ;
+  795/ 2A8 :                            ;// CALC PI //
+  796/ 2A8 :                            ;
+  797/ 2A8 :                            ;// 割り算=========
+  798/ 2A8 :                            ;// q0/q4
+  799/ 2A8 :                            ;
+  800/ 2A8 :                            ;div32_16()
+  801/ 2A8 :                            ;{
+  802/ 2A8 :                            div32_16:
+  803/ 2A8 :                            ;	cnt2=16;
+  804/ 2A8 : C4 10                      	ld	a, =16
+  805/ 2AA : CD 82                      	st	a,cnt2
+  806/ 2AC :                            ;
+  807/ 2AC :                            ;	cyr0=0;
+  808/ 2AC : C4 00                      	ld	a, =0
+  809/ 2AE : CD B0                      	st	a,cyr0
+  810/ 2B0 :                            ;	cyr1=0;
+  811/ 2B0 : C4 00                      	ld	a, =0
+  812/ 2B2 : CD B1                      	st	a,cyr1
+  813/ 2B4 :                            ;	cyr2=0;
+  814/ 2B4 : C4 00                      	ld	a, =0
+  815/ 2B6 : CD B2                      	st	a,cyr2
+  816/ 2B8 :                            ;
+  817/ 2B8 :                            ;	do {
+  818/ 2B8 :                            __do027:
+  819/ 2B8 :                            ;
+  820/ 2B8 :                            ;// === q0:q3 の32bit を左シフト(2倍)
+  821/ 2B8 :                            ;		// q0 <<=1
+  822/ 2B8 :                            ;		ea=q0;ea+=q0;
+  823/ 2B8 : 85 A0                      	ld	ea,q0
+  824/ 2BA : B5 A0                      	add	ea,q0
+  825/ 2BC :                            ;		q0=ea;
+  826/ 2BC : 8D A0                      	st	ea,q0
+  827/ 2BE :                            ;
+  828/ 2BE :                            ;		// sr = CY(bit7) CYをcyr1:cyr2に整数値(0 or 1)で保管.
+  829/ 2BE :                            ;		a=0;e=a;
+  830/ 2BE : C4 00                      	ld	a, =0
+  831/ 2C0 : 48                         	ld	e,a
+  832/ 2C1 :                            ;		a=s;sl(ea);cyr0=ea;
+  833/ 2C1 : 06                         	ld	a,s
+  834/ 2C2 : 0F                         	sl	ea
+  835/ 2C3 : 8D B0                      	st	ea,cyr0
+  836/ 2C5 :                            ;
+  837/ 2C5 :                            ;		// q2 <<=1 : q2+= .CY
+  838/ 2C5 :                            ;		ea=q2;ea+=q2;ea+=cyr1;
+ AS V1.42 Beta [Bld 269] - Source File moni3.asm - Page 15 - 2025年01月23日 11時50分37秒
 
 
-  839/ 2E2 : 46                         	ld	p2,ea
-  840/ 2E3 : 20 56 01                   	jsr	mdump
-  841/ 2E6 :                            ;}
-  842/ 2E6 : 5C                         	ret
-  843/ 2E7 :                            
- AS V1.42 Beta [Bld 269] - Source File moni3.asm - Page 16 - 2025年01月22日 16時09分20秒
+  839/ 2C5 : 85 A2                      	ld	ea,q2
+  840/ 2C7 : B5 A2                      	add	ea,q2
+  841/ 2C9 : B5 B1                      	add	ea,cyr1
+  842/ 2CB :                            ;		q2=ea;
+  843/ 2CB : 8D A2                      	st	ea,q2
+  844/ 2CD :                            ;// === q2:q3 の16bit から q4:q5の16bit が減算できるなら減算する.
+  845/ 2CD :                            ;		ea-=q4;push(ea);
+  846/ 2CD : BD A4                      	sub	ea,q4
+  847/ 2CF : 08                         	push	ea
+  848/ 2D0 :                            ;		a=e;if(a>=0) {
+  849/ 2D0 : 40                         	ld	a,e
+  850/ 2D1 : FC 00                      	sub	a, =0
+  851/ 2D3 : 64 02                      	bp	$+4
+  852/ 2D5 : 74 0D                      	bra	__el028
+  853/ 2D7 :                            ;			pop(ea);
+  854/ 2D7 : 3A                         	pop	ea
+  855/ 2D8 :                            ;			q2=ea; //減算結果をq2に書き戻す.
+  856/ 2D8 : 8D A2                      	st	ea,q2
+  857/ 2DA :                            ;			// q0++
+  858/ 2DA :                            ;			ea=q0;ea+=1;q0=ea;
+  859/ 2DA : 85 A0                      	ld	ea,q0
+  860/ 2DC : B4 01 00                   	add	ea, =1
+  861/ 2DF : 8D A0                      	st	ea,q0
+  862/ 2E1 :                            ;		}else{
+  863/ 2E1 : 24 E4 02                   	jmp	__fi028
+  864/ 2E4 :                            __el028:
+  865/ 2E4 :                            ;			pop(ea);//減算結果を破棄する.
+  866/ 2E4 : 3A                         	pop	ea
+  867/ 2E5 :                            ;		}
+  868/ 2E5 :                            __fi028:
+  869/ 2E5 :                            ;	}while(--cnt2);	
+  870/ 2E5 : 9D 82                      	dld	A,cnt2
+  871/ 2E7 : 7C CF                      	bnz	__do027
+  872/ 2E9 :                            __od027:
+  873/ 2E9 :                            ;}
+  874/ 2E9 : 5C                         	ret
+  875/ 2EA :                            ;
+  876/ 2EA :                            ;// 割り算テスト
+  877/ 2EA :                            ;div_test()
+  878/ 2EA :                            ;{
+  879/ 2EA :                            div_test:
+  880/ 2EA :                            ;	// q0 = 12345
+  881/ 2EA :                            ;	ea=12345;q0=ea;
+  882/ 2EA : 84 39 30                   	ld	ea, =12345
+  883/ 2ED : 8D A0                      	st	ea,q0
+  884/ 2EF :                            ;	ea=0    ;q2=ea;
+  885/ 2EF : 84 00 00                   	ld	ea, =0
+  886/ 2F2 : 8D A2                      	st	ea,q2
+  887/ 2F4 :                            ;
+  888/ 2F4 :                            ;	// q4 = 10
+  889/ 2F4 :                            ;	ea=10   ;q4=ea;
+  890/ 2F4 : 84 0A 00                   	ld	ea, =10
+  891/ 2F7 : 8D A4                      	st	ea,q4
+  892/ 2F9 :                            ;
+  893/ 2F9 :                            ;	// q0/q4
+  894/ 2F9 :                            ;	div32_16();
+  895/ 2F9 : 20 A7 02                   	jsr	div32_16
+  896/ 2FC :                            ;
+  897/ 2FC :                            ;	ea=#q0;p2=ea;mdump(); //メモリーダンプの実行.
+  898/ 2FC : 84 A0 FF                   	ld	ea, =q0
+ AS V1.42 Beta [Bld 269] - Source File moni3.asm - Page 16 - 2025年01月23日 11時50分37秒
+
+
+  899/ 2FF : 46                         	ld	p2,ea
+  900/ 300 : 20 56 01                   	jsr	mdump
+  901/ 303 :                            ;}
+  902/ 303 : 5C                         	ret
+  903/ 304 :                            ;
+  904/ 304 :                            ;mp_set()
+  905/ 304 :                            ;{
+  906/ 304 :                            mp_set:
+  907/ 304 :                            ;	e=a;
+  908/ 304 : 48                         	ld	e,a
+  909/ 305 :                            ;	*p2++ = 0;
+  910/ 305 : C4 00                      	ld	a, =0
+  911/ 307 : CE 01                      	st	a, @1,p2
+  912/ 309 :                            ;	a=e;
+  913/ 309 : 40                         	ld	a,e
+  914/ 30A :                            ;	*p2++ = a;
+  915/ 30A : CE 01                      	st	a, @1,p2
+  916/ 30C :                            ;	cnt1=#PRECISION;
+  917/ 30C : C4 C8                      	ld	a, =PRECISION
+  918/ 30E : CD 81                      	st	a,cnt1
+  919/ 310 :                            ;	do {
+  920/ 310 :                            __do029:
+  921/ 310 :                            ;		*p2++ = 0;
+  922/ 310 : C4 00                      	ld	a, =0
+  923/ 312 : CE 01                      	st	a, @1,p2
+  924/ 314 :                            ;	}while(--cnt1);
+  925/ 314 : 9D 81                      	dld	A,cnt1
+  926/ 316 : 7C F8                      	bnz	__do029
+  927/ 318 :                            __od029:
+  928/ 318 :                            ;}
+  929/ 318 : 5C                         	ret
+  930/ 319 :                            ;
+  931/ 319 :                            ;mp_copy()
+  932/ 319 :                            ;{
+  933/ 319 :                            mp_copy:
+  934/ 319 :                            ;	cnt1=#PRECISION;
+  935/ 319 : C4 C8                      	ld	a, =PRECISION
+  936/ 31B : CD 81                      	st	a,cnt1
+  937/ 31D :                            ;	do {
+  938/ 31D :                            __do030:
+  939/ 31D :                            ;		a = *p3++;
+  940/ 31D : C7 01                      	ld	a, @1,p3
+  941/ 31F :                            ;		    *p2++ = a;
+  942/ 31F : CE 01                      	st	a, @1,p2
+  943/ 321 :                            ;	}while(--cnt1);
+  944/ 321 : 9D 81                      	dld	A,cnt1
+  945/ 323 : 7C F8                      	bnz	__do030
+  946/ 325 :                            __od030:
+  947/ 325 :                            ;}
+  948/ 325 : 5C                         	ret
+  949/ 326 :                            ;
+  950/ 326 :                            ;q0_dump()
+  951/ 326 :                            ;{
+  952/ 326 :                            q0_dump:
+  953/ 326 :                            ;	push(p2);
+  954/ 326 : 56                         	push	p2
+  955/ 327 :                            ;	ea=#q0;p2=ea;
+  956/ 327 : 84 A0 FF                   	ld	ea, =q0
+  957/ 32A : 46                         	ld	p2,ea
+  958/ 32B :                            ;	mdump_8();
+ AS V1.42 Beta [Bld 269] - Source File moni3.asm - Page 17 - 2025年01月23日 11時50分37秒
+
+
+  959/ 32B : 20 7D 01                   	jsr	mdump_8
+  960/ 32E :                            ;	put_crlf();
+  961/ 32E : 20 D5 01                   	jsr	put_crlf
+  962/ 331 :                            ;	pop(p2);
+  963/ 331 : 5E                         	pop	p2
+  964/ 332 :                            ;}
+  965/ 332 : 5C                         	ret
+  966/ 333 :                            ;
+  967/ 333 :                            ;pi_dump()
+  968/ 333 :                            ;{
+  969/ 333 :                            pi_dump:
+  970/ 333 :                            ;	push(p2);
+  971/ 333 : 56                         	push	p2
+  972/ 334 :                            ;	putc();
+  973/ 334 : 20 08 00                   	jsr	putc
+  974/ 337 :                            ;	a=':';putc();
+  975/ 337 : C4 3A                      	ld	a, =':'
+  976/ 339 : 20 08 00                   	jsr	putc
+  977/ 33C :                            ;	ea=#Pi;p2=ea;
+  978/ 33C : 84 C7 05                   	ld	ea, =Pi
+  979/ 33F : 46                         	ld	p2,ea
+  980/ 340 :                            ;	mdump_b16();
+  981/ 340 : 20 8E 01                   	jsr	mdump_b16
+  982/ 343 :                            ;	put_crlf();
+  983/ 343 : 20 D5 01                   	jsr	put_crlf
+  984/ 346 :                            ;	pop(p2);
+  985/ 346 : 5E                         	pop	p2
+  986/ 347 :                            ;}
+  987/ 347 : 5C                         	ret
+  988/ 348 :                            ;
+  989/ 348 :                            ;ma_dump()
+  990/ 348 :                            ;{
+  991/ 348 :                            ma_dump:
+  992/ 348 :                            ;	push(p2);
+  993/ 348 : 56                         	push	p2
+  994/ 349 :                            ;	putc();
+  995/ 349 : 20 08 00                   	jsr	putc
+  996/ 34C :                            ;	a=':';putc();
+  997/ 34C : C4 3A                      	ld	a, =':'
+  998/ 34E : 20 08 00                   	jsr	putc
+  999/ 351 :                            ;	ea=#ma;p2=ea;
+ 1000/ 351 : 84 91 06                   	ld	ea, =ma
+ 1001/ 354 : 46                         	ld	p2,ea
+ 1002/ 355 :                            ;	mdump_b16();
+ 1003/ 355 : 20 8E 01                   	jsr	mdump_b16
+ 1004/ 358 :                            ;	put_crlf();
+ 1005/ 358 : 20 D5 01                   	jsr	put_crlf
+ 1006/ 35B :                            ;	pop(p2);
+ 1007/ 35B : 5E                         	pop	p2
+ 1008/ 35C :                            ;}
+ 1009/ 35C : 5C                         	ret
+ 1010/ 35D :                            ;
+ 1011/ 35D :                            ;mb_dump()
+ 1012/ 35D :                            ;{
+ 1013/ 35D :                            mb_dump:
+ 1014/ 35D :                            ;	push(p2);
+ 1015/ 35D : 56                         	push	p2
+ 1016/ 35E :                            ;	putc();
+ 1017/ 35E : 20 08 00                   	jsr	putc
+ 1018/ 361 :                            ;	a=':';putc();
+ AS V1.42 Beta [Bld 269] - Source File moni3.asm - Page 18 - 2025年01月23日 11時50分37秒
+
+
+ 1019/ 361 : C4 3A                      	ld	a, =':'
+ 1020/ 363 : 20 08 00                   	jsr	putc
+ 1021/ 366 :                            ;	ea=#mb;p2=ea;
+ 1022/ 366 : 84 5B 07                   	ld	ea, =mb
+ 1023/ 369 : 46                         	ld	p2,ea
+ 1024/ 36A :                            ;	mdump_b16();
+ 1025/ 36A : 20 8E 01                   	jsr	mdump_b16
+ 1026/ 36D :                            ;	put_crlf();
+ 1027/ 36D : 20 D5 01                   	jsr	put_crlf
+ 1028/ 370 :                            ;	pop(p2);
+ 1029/ 370 : 5E                         	pop	p2
+ 1030/ 371 :                            ;}
+ 1031/ 371 : 5C                         	ret
+ 1032/ 372 :                            ;
+ 1033/ 372 :                            ;mc_dump()
+ 1034/ 372 :                            ;{
+ 1035/ 372 :                            mc_dump:
+ 1036/ 372 :                            ;	push(p2);
+ 1037/ 372 : 56                         	push	p2
+ 1038/ 373 :                            ;	putc();
+ 1039/ 373 : 20 08 00                   	jsr	putc
+ 1040/ 376 :                            ;	a=':';putc();
+ 1041/ 376 : C4 3A                      	ld	a, =':'
+ 1042/ 378 : 20 08 00                   	jsr	putc
+ 1043/ 37B :                            ;	ea=#mc;p2=ea;
+ 1044/ 37B : 84 25 08                   	ld	ea, =mc
+ 1045/ 37E : 46                         	ld	p2,ea
+ 1046/ 37F :                            ;	mdump_b16();
+ 1047/ 37F : 20 8E 01                   	jsr	mdump_b16
+ 1048/ 382 :                            ;	put_crlf();
+ 1049/ 382 : 20 D5 01                   	jsr	put_crlf
+ 1050/ 385 :                            ;	pop(p2);
+ 1051/ 385 : 5E                         	pop	p2
+ 1052/ 386 :                            ;}
+ 1053/ 386 : 5C                         	ret
+ 1054/ 387 :                            ;
+ 1055/ 387 :                            ;/**********************************************************************
+ 1056/ 387 :                            ; *  mp を 整数 n で除算する
+ 1057/ 387 :                            ; **********************************************************************
+ 1058/ 387 :                            ; * mp_div(MP *p2,uchar n1)
+ 1059/ 387 :                            ; */
+ 1060/ 387 :                            ;mp_div()
+ 1061/ 387 :                            ;{
+ 1062/ 387 :                            mp_div:
+ 1063/ 387 :                            ;	q4=ea; // q4:q5 = 除数.
+ 1064/ 387 : 8D A4                      	st	ea,q4
+ 1065/ 389 :                            ;	ea=0;q2=ea;
+ 1066/ 389 : 84 00 00                   	ld	ea, =0
+ 1067/ 38C : 8D A2                      	st	ea,q2
+ 1068/ 38E :                            ;
+ 1069/ 38E :                            ;	a=0;e=a;
+ 1070/ 38E : C4 00                      	ld	a, =0
+ 1071/ 390 : 48                         	ld	e,a
+ 1072/ 391 :                            ;
+ 1073/ 391 :                            ;	cnt1=#PRECISION;
+ 1074/ 391 : C4 C8                      	ld	a, =PRECISION
+ 1075/ 393 : CD 81                      	st	a,cnt1
+ 1076/ 395 :                            ;	do {
+ 1077/ 395 :                            __do031:
+ 1078/ 395 :                            ;		a = p2[0];e=a;
+ AS V1.42 Beta [Bld 269] - Source File moni3.asm - Page 19 - 2025年01月23日 11時50分37秒
+
+
+ 1079/ 395 : C2 00                      	ld	a,0,p2
+ 1080/ 397 : 48                         	ld	e,a
+ 1081/ 398 :                            ;		a = p2[1];
+ 1082/ 398 : C2 01                      	ld	a,1,p2
+ 1083/ 39A :                            ;		q0=ea; // q0:q3= 被除数.
+ 1084/ 39A : 8D A0                      	st	ea,q0
+ 1085/ 39C :                            ;
+ 1086/ 39C :                            ;//		a='>';putc();q0_dump();		
+ 1087/ 39C :                            ;		div32_16();
+ 1088/ 39C : 20 A7 02                   	jsr	div32_16
+ 1089/ 39F :                            ;//		a=' ';putc();q0_dump();		
+ 1090/ 39F :                            ;
+ 1091/ 39F :                            ;		// q0:q1 = 商
+ 1092/ 39F :                            ;		ea=q0;
+ 1093/ 39F : 85 A0                      	ld	ea,q0
+ 1094/ 3A1 :                            ;		p2[1]=a; a=e;
+ 1095/ 3A1 : CA 01                      	st	a,1,p2
+ 1096/ 3A3 : 40                         	ld	a,e
+ 1097/ 3A4 :                            ;		p2[0]=a;	
+ 1098/ 3A4 : CA 00                      	st	a,0,p2
+ 1099/ 3A6 :                            ;		// q2:q3 = 剰余(次のループで65536倍して再利用)
+ 1100/ 3A6 :                            ;		a=*p2++;
+ 1101/ 3A6 : C6 01                      	ld	a, @1,p2
+ 1102/ 3A8 :                            ;		a=*p2++;
+ 1103/ 3A8 : C6 01                      	ld	a, @1,p2
+ 1104/ 3AA :                            ;
+ 1105/ 3AA :                            ;		dld(a,cnt1); // --cnt1;
+ 1106/ 3AA : 9D 81                      	dld	a,cnt1
+ 1107/ 3AC :                            ;	}while(--cnt1);
+ 1108/ 3AC : 9D 81                      	dld	A,cnt1
+ 1109/ 3AE : 7C E5                      	bnz	__do031
+ 1110/ 3B0 :                            __od031:
+ 1111/ 3B0 :                            ;}
+ 1112/ 3B0 : 5C                         	ret
+ 1113/ 3B1 :                            ;
+ 1114/ 3B1 :                            ;p2_last()
+ 1115/ 3B1 :                            ;{
+ 1116/ 3B1 :                            p2_last:
+ 1117/ 3B1 :                            ;	ea=p2;
+ 1118/ 3B1 : 32                         	ld	ea,p2
+ 1119/ 3B2 :                            ;	ea+=#PRECISION;
+ 1120/ 3B2 : B4 C8 00                   	add	ea, =PRECISION
+ 1121/ 3B5 :                            ;	ea-=1;
+ 1122/ 3B5 : BC 01 00                   	sub	ea, =1
+ 1123/ 3B8 :                            ;	p2=ea;
+ 1124/ 3B8 : 46                         	ld	p2,ea
+ 1125/ 3B9 :                            ;}
+ 1126/ 3B9 : 5C                         	ret
+ 1127/ 3BA :                            ;p3_last()
+ 1128/ 3BA :                            ;{
+ 1129/ 3BA :                            p3_last:
+ 1130/ 3BA :                            ;	ea=p3;
+ 1131/ 3BA : 33                         	ld	ea,p3
+ 1132/ 3BB :                            ;	ea+=#PRECISION;
+ 1133/ 3BB : B4 C8 00                   	add	ea, =PRECISION
+ 1134/ 3BE :                            ;	ea-=1;
+ 1135/ 3BE : BC 01 00                   	sub	ea, =1
+ 1136/ 3C1 :                            ;	p3=ea;
+ 1137/ 3C1 : 47                         	ld	p3,ea
+ 1138/ 3C2 :                            ;}
+ AS V1.42 Beta [Bld 269] - Source File moni3.asm - Page 20 - 2025年01月23日 11時50分37秒
+
+
+ 1139/ 3C2 : 5C                         	ret
+ 1140/ 3C3 :                            ;/**********************************************************************
+ 1141/ 3C3 :                            ; *	多倍長減算： p2 = p2 - p3
+ 1142/ 3C3 :                            ; **********************************************************************
+ 1143/ 3C3 :                            ; *   mp_add(p2 += p3)
+ 1144/ 3C3 :                            ; */
+ 1145/ 3C3 :                            ;mp_add()
+ 1146/ 3C3 :                            ;{
+ 1147/ 3C3 :                            mp_add:
+ 1148/ 3C3 :                            ;	p2_last();
+ 1149/ 3C3 : 20 B0 03                   	jsr	p2_last
+ 1150/ 3C6 :                            ;	p3_last();
+ 1151/ 3C6 : 20 B9 03                   	jsr	p3_last
+ 1152/ 3C9 :                            ;
+ 1153/ 3C9 :                            ;	cyr1=0;	// CY
+ 1154/ 3C9 : C4 00                      	ld	a, =0
+ 1155/ 3CB : CD B1                      	st	a,cyr1
+ 1156/ 3CD :                            ;	cyr2=0;
+ 1157/ 3CD : C4 00                      	ld	a, =0
+ 1158/ 3CF : CD B2                      	st	a,cyr2
+ 1159/ 3D1 :                            ;
+ 1160/ 3D1 :                            ;	r0 = 0;
+ 1161/ 3D1 : C4 00                      	ld	a, =0
+ 1162/ 3D3 : CD A8                      	st	a,r0
+ 1163/ 3D5 :                            ;	r1 = 0;
+ 1164/ 3D5 : C4 00                      	ld	a, =0
+ 1165/ 3D7 : CD AA                      	st	a,r1
+ 1166/ 3D9 :                            ;	r2 = 0;
+ 1167/ 3D9 : C4 00                      	ld	a, =0
+ 1168/ 3DB : CD AC                      	st	a,r2
+ 1169/ 3DD :                            ;	r3 = 0;
+ 1170/ 3DD : C4 00                      	ld	a, =0
+ 1171/ 3DF : CD AE                      	st	a,r3
+ 1172/ 3E1 :                            ;
+ 1173/ 3E1 :                            ;	cnt1=#PRECISION;
+ 1174/ 3E1 : C4 C8                      	ld	a, =PRECISION
+ 1175/ 3E3 : CD 81                      	st	a,cnt1
+ 1176/ 3E5 :                            ;	do {
+ 1177/ 3E5 :                            __do032:
+ 1178/ 3E5 :                            ;		// p2[0] -= p3[0];
+ 1179/ 3E5 :                            ;		a = *p2; r0 = a;
+ 1180/ 3E5 : C2 00                      	ld	a, 0,p2
+ 1181/ 3E7 : CD A8                      	st	a,r0
+ 1182/ 3E9 :                            ;		a = *p3; r2 = a;
+ 1183/ 3E9 : C3 00                      	ld	a, 0,p3
+ 1184/ 3EB : CD AC                      	st	a,r2
+ 1185/ 3ED :                            ;
+ 1186/ 3ED :                            ;		ea = r0;
+ 1187/ 3ED : 85 A8                      	ld	ea,r0
+ 1188/ 3EF :                            ;		ea +=r2;
+ 1189/ 3EF : B5 AC                      	add	ea,r2
+ 1190/ 3F1 :                            ;		ea +=cyr1; // CY を含めて減算.
+ 1191/ 3F1 : B5 B1                      	add	ea,cyr1
+ 1192/ 3F3 :                            ;		*p2 = a;   // 減算結果8bit
+ 1193/ 3F3 : CA 00                      	st	a, 0,p2
+ 1194/ 3F5 :                            ;
+ 1195/ 3F5 :                            ;		// CYをcyr1:cyr2に整数値(0 or 1)で保管.
+ 1196/ 3F5 :                            ;		cyr1=0;
+ 1197/ 3F5 : C4 00                      	ld	a, =0
+ 1198/ 3F7 : CD B1                      	st	a,cyr1
+ AS V1.42 Beta [Bld 269] - Source File moni3.asm - Page 21 - 2025年01月23日 11時50分37秒
+
+
+ 1199/ 3F9 :                            ;		a=e;if(a!=0) {cyr1=1;}
+ 1200/ 3F9 : 40                         	ld	a,e
+ 1201/ 3FA : 6C 04                      	bz	__el033
+ 1202/ 3FC : C4 01                      	ld	a, =1
+ 1203/ 3FE : CD B1                      	st	a,cyr1
+ 1204/ 400 :                            ;
+ 1205/ 400 :                            ;		// p2++ p3++;
+ 1206/ 400 :                            ;		ld(a,@-1,p2);		
+ 1207/ 400 :                            __el033:
+ 1208/ 400 : C6 FF                      	ld	a,@-1,p2
+ 1209/ 402 :                            ;		ld(a,@-1,p3);		
+ 1210/ 402 : C7 FF                      	ld	a,@-1,p3
+ 1211/ 404 :                            ;	}while(--cnt1);
+ 1212/ 404 : 9D 81                      	dld	A,cnt1
+ 1213/ 406 : 7C DD                      	bnz	__do032
+ 1214/ 408 :                            __od032:
+ 1215/ 408 :                            ;}
+ 1216/ 408 : 5C                         	ret
+ 1217/ 409 :                            ;
+ 1218/ 409 :                            ;/**********************************************************************
+ 1219/ 409 :                            ; *	多倍長減算： p2 = p2 - p3
+ 1220/ 409 :                            ; **********************************************************************
+ 1221/ 409 :                            ; *   mp_sub(p2 -= p3)
+ 1222/ 409 :                            ; */
+ 1223/ 409 :                            ;mp_sub()
+ 1224/ 409 :                            ;{
+ 1225/ 409 :                            mp_sub:
+ 1226/ 409 :                            ;	p2_last();
+ 1227/ 409 : 20 B0 03                   	jsr	p2_last
+ 1228/ 40C :                            ;	p3_last();
+ 1229/ 40C : 20 B9 03                   	jsr	p3_last
+ 1230/ 40F :                            ;
+ 1231/ 40F :                            ;	cyr1=0;	// CY
+ 1232/ 40F : C4 00                      	ld	a, =0
+ 1233/ 411 : CD B1                      	st	a,cyr1
+ 1234/ 413 :                            ;	cyr2=0;
+ 1235/ 413 : C4 00                      	ld	a, =0
+ 1236/ 415 : CD B2                      	st	a,cyr2
+ 1237/ 417 :                            ;
+ 1238/ 417 :                            ;	r0 = 0;
+ 1239/ 417 : C4 00                      	ld	a, =0
+ 1240/ 419 : CD A8                      	st	a,r0
+ 1241/ 41B :                            ;	r1 = 0;
+ 1242/ 41B : C4 00                      	ld	a, =0
+ 1243/ 41D : CD AA                      	st	a,r1
+ 1244/ 41F :                            ;	r2 = 0;
+ 1245/ 41F : C4 00                      	ld	a, =0
+ 1246/ 421 : CD AC                      	st	a,r2
+ 1247/ 423 :                            ;	r3 = 0;
+ 1248/ 423 : C4 00                      	ld	a, =0
+ 1249/ 425 : CD AE                      	st	a,r3
+ 1250/ 427 :                            ;
+ 1251/ 427 :                            ;	cnt1=#PRECISION;
+ 1252/ 427 : C4 C8                      	ld	a, =PRECISION
+ 1253/ 429 : CD 81                      	st	a,cnt1
+ 1254/ 42B :                            ;	do {
+ 1255/ 42B :                            __do034:
+ 1256/ 42B :                            ;		// p2[0] -= p3[0];
+ 1257/ 42B :                            ;		a = *p2; r0 = a;
+ 1258/ 42B : C2 00                      	ld	a, 0,p2
+ AS V1.42 Beta [Bld 269] - Source File moni3.asm - Page 22 - 2025年01月23日 11時50分37秒
+
+
+ 1259/ 42D : CD A8                      	st	a,r0
+ 1260/ 42F :                            ;		a = *p3; r2 = a;
+ 1261/ 42F : C3 00                      	ld	a, 0,p3
+ 1262/ 431 : CD AC                      	st	a,r2
+ 1263/ 433 :                            ;
+ 1264/ 433 :                            ;		ea = r0;
+ 1265/ 433 : 85 A8                      	ld	ea,r0
+ 1266/ 435 :                            ;		ea -=r2;
+ 1267/ 435 : BD AC                      	sub	ea,r2
+ 1268/ 437 :                            ;		ea -=cyr1; // CY を含めて減算.
+ 1269/ 437 : BD B1                      	sub	ea,cyr1
+ 1270/ 439 :                            ;		*p2 = a;   // 減算結果8bit
+ 1271/ 439 : CA 00                      	st	a, 0,p2
+ 1272/ 43B :                            ;
+ 1273/ 43B :                            ;		// CYをcyr1:cyr2に整数値(0 or 1)で保管.
+ 1274/ 43B :                            ;		cyr1=0;
+ 1275/ 43B : C4 00                      	ld	a, =0
+ 1276/ 43D : CD B1                      	st	a,cyr1
+ 1277/ 43F :                            ;		a=e;if(a!=0) {cyr1=1;}
+ 1278/ 43F : 40                         	ld	a,e
+ 1279/ 440 : 6C 04                      	bz	__el035
+ 1280/ 442 : C4 01                      	ld	a, =1
+ 1281/ 444 : CD B1                      	st	a,cyr1
+ 1282/ 446 :                            ;
+ 1283/ 446 :                            ;		// p2-- p3--;
+ 1284/ 446 :                            ;		ld(a,@-1,p2);		
+ 1285/ 446 :                            __el035:
+ 1286/ 446 : C6 FF                      	ld	a,@-1,p2
+ 1287/ 448 :                            ;		ld(a,@-1,p3);		
+ 1288/ 448 : C7 FF                      	ld	a,@-1,p3
+ 1289/ 44A :                            ;	}while(--cnt1);
+ 1290/ 44A : 9D 81                      	dld	A,cnt1
+ 1291/ 44C : 7C DD                      	bnz	__do034
+ 1292/ 44E :                            __od034:
+ 1293/ 44E :                            ;}
+ 1294/ 44E : 5C                         	ret
+ 1295/ 44F :                            ;/**********************************************************************
+ 1296/ 44F :                            ; *  ea を 10倍する.
+ 1297/ 44F :                            ; **********************************************************************
+ 1298/ 44F :                            ; */
+ 1299/ 44F :                            ;ea_mul10()
+ 1300/ 44F :                            ;{
+ 1301/ 44F :                            ea_mul10:
+ 1302/ 44F :                            ;//	push(ea);
+ 1303/ 44F :                            ;//		prhex4();
+ 1304/ 44F :                            ;//		a='=';putc();
+ 1305/ 44F :                            ;//	pop(ea);
+ 1306/ 44F :                            ;	// 乗算命令MPYはEAとTの内容を乗じて上位16 bitをEAに、下位16 bitをTに入れます。
+ 1307/ 44F :                            ;	// 演算は符号付きで行われます。
+ 1308/ 44F :                            ;	t=ea;
+ 1309/ 44F : 09                         	ld	t,ea
+ 1310/ 450 :                            ;	ea=10;mpy(ea,t);
+ 1311/ 450 : 84 0A 00                   	ld	ea, =10
+ 1312/ 453 : 2C                         	mpy	ea,t
+ 1313/ 454 :                            ;	ea=t;
+ 1314/ 454 : 0B                         	ld	ea,t
+ 1315/ 455 :                            ;//	push(ea);
+ 1316/ 455 :                            ;//		prhex4();
+ 1317/ 455 :                            ;//		a=';';putc();put_crlf();
+ 1318/ 455 :                            ;//	pop(ea);
+ AS V1.42 Beta [Bld 269] - Source File moni3.asm - Page 23 - 2025年01月23日 11時50分37秒
+
+
+ 1319/ 455 :                            ;}
+ 1320/ 455 : 5C                         	ret
+ 1321/ 456 :                            ;/**********************************************************************
+ 1322/ 456 :                            ; *  m0 を 10倍する.
+ 1323/ 456 :                            ; **********************************************************************
+ 1324/ 456 :                            ; * mp_mul10(p2)
+ 1325/ 456 :                            ; */
+ 1326/ 456 :                            ;mp_mul10()
+ 1327/ 456 :                            ;{
+ 1328/ 456 :                            mp_mul10:
+ 1329/ 456 :                            ;	p2_last();
+ 1330/ 456 : 20 B0 03                   	jsr	p2_last
+ 1331/ 459 :                            ;
+ 1332/ 459 :                            ;	cyr0=0;
+ 1333/ 459 : C4 00                      	ld	a, =0
+ 1334/ 45B : CD B0                      	st	a,cyr0
+ 1335/ 45D :                            ;	cyr1=0;	// CY
+ 1336/ 45D : C4 00                      	ld	a, =0
+ 1337/ 45F : CD B1                      	st	a,cyr1
+ 1338/ 461 :                            ;	cyr2=0;
+ 1339/ 461 : C4 00                      	ld	a, =0
+ 1340/ 463 : CD B2                      	st	a,cyr2
+ 1341/ 465 :                            ;
+ 1342/ 465 :                            ;	r2 = 0;
+ 1343/ 465 : C4 00                      	ld	a, =0
+ 1344/ 467 : CD AC                      	st	a,r2
+ 1345/ 469 :                            ;	r3 = 0;
+ 1346/ 469 : C4 00                      	ld	a, =0
+ 1347/ 46B : CD AE                      	st	a,r3
+ 1348/ 46D :                            ;
+ 1349/ 46D :                            ;	cnt1=#PRECISION;
+ 1350/ 46D : C4 C8                      	ld	a, =PRECISION
+ 1351/ 46F : CD 81                      	st	a,cnt1
+ 1352/ 471 :                            ;	do {
+ 1353/ 471 :                            __do036:
+ 1354/ 471 :                            ;		a = *p2; r0 = a;
+ 1355/ 471 : C2 00                      	ld	a, 0,p2
+ 1356/ 473 : CD A8                      	st	a,r0
+ 1357/ 475 :                            ;		a = 0;   r1 = a;
+ 1358/ 475 : C4 00                      	ld	a, =0
+ 1359/ 477 : CD AA                      	st	a,r1
+ 1360/ 479 :                            ;		ea = r0; ea_mul10();ea+=r2;
+ 1361/ 479 : 85 A8                      	ld	ea,r0
+ 1362/ 47B : 20 4E 04                   	jsr	ea_mul10
+ 1363/ 47E : B5 AC                      	add	ea,r2
+ 1364/ 480 :                            ;		*p2 = a;   	// 乗算結果8bit
+ 1365/ 480 : CA 00                      	st	a, 0,p2
+ 1366/ 482 :                            ;		
+ 1367/ 482 :                            ;		a=e;r2=a;  	// 8bitを越える分をr2に保管.
+ 1368/ 482 : 40                         	ld	a,e
+ 1369/ 483 : CD AC                      	st	a,r2
+ 1370/ 485 :                            ;		a=0;r3=a;
+ 1371/ 485 : C4 00                      	ld	a, =0
+ 1372/ 487 : CD AE                      	st	a,r3
+ 1373/ 489 :                            ;
+ 1374/ 489 :                            ;		// p2--;
+ 1375/ 489 :                            ;		ld(a,@-1,p2);		
+ 1376/ 489 : C6 FF                      	ld	a,@-1,p2
+ 1377/ 48B :                            ;	}while(--cnt1);
+ 1378/ 48B : 9D 81                      	dld	A,cnt1
+ AS V1.42 Beta [Bld 269] - Source File moni3.asm - Page 24 - 2025年01月23日 11時50分37秒
+
+
+ 1379/ 48D : 7C E2                      	bnz	__do036
+ 1380/ 48F :                            __od036:
+ 1381/ 48F :                            ;}
+ 1382/ 48F : 5C                         	ret
+ 1383/ 490 :                            ;
+ 1384/ 490 :                            ;/**********************************************************************
+ 1385/ 490 :                            ; *	mp を小数以下 (PRECISION*2+1) まで印字.
+ 1386/ 490 :                            ; **********************************************************************
+ 1387/ 490 :                            ; * void print_pi(MP *p)
+ 1388/ 490 :                            ; */
+ 1389/ 490 :                            ;print_pi()
+ 1390/ 490 :                            ;{
+ 1391/ 490 :                            print_pi:
+ 1392/ 490 :                            ;	tab1=0;lf1=0;top1=0;
+ 1393/ 490 : C4 00                      	ld	a, =0
+ 1394/ 492 : CD BA                      	st	a,tab1
+ 1395/ 494 : C4 00                      	ld	a, =0
+ 1396/ 496 : CD BB                      	st	a,lf1
+ 1397/ 498 : C4 00                      	ld	a, =0
+ 1398/ 49A : CD BD                      	st	a,top1
+ 1399/ 49C :                            ;	
+ 1400/ 49C :                            ;//	for(i=0;i< (PRECISION*2+1) ;i++) {
+ 1401/ 49C :                            ;	cnt3=#PRECISION;
+ 1402/ 49C : C4 C8                      	ld	a, =PRECISION
+ 1403/ 49E : CD B3                      	st	a,cnt3
+ 1404/ 4A0 :                            ;	ild(a,cnt3);
+ 1405/ 4A0 : 95 B3                      	ild	a,cnt3
+ 1406/ 4A2 :                            ;	do {
+ 1407/ 4A2 :                            __do037:
+ 1408/ 4A2 :                            ;		//a='+';pi_dump();
+ 1409/ 4A2 :                            ;		ea=#Pi;p2=ea;
+ 1410/ 4A2 : 84 C7 05                   	ld	ea, =Pi
+ 1411/ 4A5 : 46                         	ld	p2,ea
+ 1412/ 4A6 :                            ;		a=p2[1];chr1=a;
+ 1413/ 4A6 : C2 01                      	ld	a,1,p2
+ 1414/ 4A8 : CD BC                      	st	a,chr1
+ 1415/ 4AA :                            ;		a=0;p2[0]=a;p2[1]=a;
+ 1416/ 4AA : C4 00                      	ld	a, =0
+ 1417/ 4AC : CA 00                      	st	a,0,p2
+ 1418/ 4AE : CA 01                      	st	a,1,p2
+ 1419/ 4B0 :                            ;		mp_mul10();
+ 1420/ 4B0 : 20 55 04                   	jsr	mp_mul10
+ 1421/ 4B3 :                            ;		a=top1;if(a==0) {
+ 1422/ 4B3 : C5 BD                      	ld	a,top1
+ 1423/ 4B5 : 7C 1C                      	bnz	__el038
+ 1424/ 4B7 :                            ;			top1=1;
+ 1425/ 4B7 : C4 01                      	ld	a, =1
+ 1426/ 4B9 : CD BD                      	st	a,top1
+ 1427/ 4BB :                            ;//			printf("PI = %c. + \n",'0'+c);
+ 1428/ 4BB :                            ;			push(p2);
+ 1429/ 4BB : 56                         	push	p2
+ 1430/ 4BC :                            ;			p2=#PI_EQU_1; puts();
+ 1431/ 4BC : 26 9C 02                   	ld	p2, =PI_EQU_1
+ 1432/ 4BF : 20 E0 01                   	jsr	puts
+ 1433/ 4C2 :                            ;			a=chr1;a+='0';putc();
+ 1434/ 4C2 : C5 BC                      	ld	a,chr1
+ 1435/ 4C4 : F4 30                      	add	a, ='0'
+ 1436/ 4C6 : 20 08 00                   	jsr	putc
+ 1437/ 4C9 :                            ;			p2=#PI_EQU_2; puts();
+ 1438/ 4C9 : 26 A2 02                   	ld	p2, =PI_EQU_2
+ AS V1.42 Beta [Bld 269] - Source File moni3.asm - Page 25 - 2025年01月23日 11時50分37秒
+
+
+ 1439/ 4CC : 20 E0 01                   	jsr	puts
+ 1440/ 4CF :                            ;			pop(p2);
+ 1441/ 4CF : 5E                         	pop	p2
+ 1442/ 4D0 :                            ;		}else{
+ 1443/ 4D0 : 24 F9 04                   	jmp	__fi038
+ 1444/ 4D3 :                            __el038:
+ 1445/ 4D3 :                            ;			a=chr1;a+='0';putc();
+ 1446/ 4D3 : C5 BC                      	ld	a,chr1
+ 1447/ 4D5 : F4 30                      	add	a, ='0'
+ 1448/ 4D7 : 20 08 00                   	jsr	putc
+ 1449/ 4DA :                            ;			ild(a,tab1);  // tab1++;
+ 1450/ 4DA : 95 BA                      	ild	a,tab1
+ 1451/ 4DC :                            ;			if(a>=10) {tab1=0;
+ 1452/ 4DC : FC 0A                      	sub	a, =10
+ 1453/ 4DE : 64 02                      	bp	$+4
+ 1454/ 4E0 : 74 18                      	bra	__el039
+ 1455/ 4E2 : C4 00                      	ld	a, =0
+ 1456/ 4E4 : CD BA                      	st	a,tab1
+ 1457/ 4E6 :                            ;				a=' ';putc();
+ 1458/ 4E6 : C4 20                      	ld	a, =' '
+ 1459/ 4E8 : 20 08 00                   	jsr	putc
+ 1460/ 4EB :                            ;				ild(a,lf1);  // tab1++;
+ 1461/ 4EB : 95 BB                      	ild	a,lf1
+ 1462/ 4ED :                            ;				if(a>=5) {lf1=0;
+ 1463/ 4ED : FC 05                      	sub	a, =5
+ 1464/ 4EF : 64 02                      	bp	$+4
+ 1465/ 4F1 : 74 07                      	bra	__el040
+ 1466/ 4F3 : C4 00                      	ld	a, =0
+ 1467/ 4F5 : CD BB                      	st	a,lf1
+ 1468/ 4F7 :                            ;					put_crlf();
+ 1469/ 4F7 : 20 D5 01                   	jsr	put_crlf
+ 1470/ 4FA :                            ;				}
+ 1471/ 4FA :                            ;			}
+ 1472/ 4FA :                            __el040:
+ 1473/ 4FA :                            ;		}
+ 1474/ 4FA :                            __el039:
+ 1475/ 4FA :                            __fi038:
+ 1476/ 4FA :                            ;	}while(--cnt3);
+ 1477/ 4FA : 9D B3                      	dld	A,cnt3
+ 1478/ 4FC : 7C A4                      	bnz	__do037
+ 1479/ 4FE :                            __od037:
+ 1480/ 4FE :                            ;	put_crlf();
+ 1481/ 4FE : 20 D5 01                   	jsr	put_crlf
+ 1482/ 501 :                            ;}
+ 1483/ 501 : 5C                         	ret
+ 1484/ 502 :                            ;
+ 1485/ 502 :                            ;/**********************************************************************
+ 1486/ 502 :                            ; *  ひとつのArcTan項を計算する ma = m * atan(1/n)
+ 1487/ 502 :                            ; **********************************************************************
+ 1488/ 502 :                            ;    void calc_M_atan_1_N(int m,int n)
+ 1489/ 502 :                            ; */
+ 1490/ 502 :                            ;calc_M_atan_1_N()
+ 1491/ 502 :                            ;{
+ 1492/ 502 :                            calc_M_atan_1_N:
+ 1493/ 502 :                            ;// ma = m * (1/n)
+ 1494/ 502 :                            ;	ea=#ma ; p2=ea;
+ 1495/ 502 : 84 91 06                   	ld	ea, =ma
+ 1496/ 505 : 46                         	ld	p2,ea
+ 1497/ 506 :                            ;	a=0;e=a;a=m1  ; mp_set();
+ 1498/ 506 : C4 00                      	ld	a, =0
+ AS V1.42 Beta [Bld 269] - Source File moni3.asm - Page 26 - 2025年01月23日 11時50分37秒
+
+
+ 1499/ 508 : 48                         	ld	e,a
+ 1500/ 509 : C5 B7                      	ld	a,m1
+ 1501/ 50B : 20 03 03                   	jsr	mp_set
+ 1502/ 50E :                            ;
+ 1503/ 50E :                            ;	ea=#ma ; p2=ea;
+ 1504/ 50E : 84 91 06                   	ld	ea, =ma
+ 1505/ 511 : 46                         	ld	p2,ea
+ 1506/ 512 :                            ;	a=0;e=a;a=n1  ; mp_div();
+ 1507/ 512 : C4 00                      	ld	a, =0
+ 1508/ 514 : 48                         	ld	e,a
+ 1509/ 515 : C5 B8                      	ld	a,n1
+ 1510/ 517 : 20 86 03                   	jsr	mp_div
+ 1511/ 51A :                            ;
+ 1512/ 51A :                            ;//	a='A'; ma_dump();
+ 1513/ 51A :                            ;
+ 1514/ 51A :                            ;// mc = m * (1/n)
+ 1515/ 51A :                            ;	ea=#mc ; p2=ea;
+ 1516/ 51A : 84 25 08                   	ld	ea, =mc
+ 1517/ 51D : 46                         	ld	p2,ea
+ 1518/ 51E :                            ;	ea=#ma ; p3=ea;
+ 1519/ 51E : 84 91 06                   	ld	ea, =ma
+ 1520/ 521 : 47                         	ld	p3,ea
+ 1521/ 522 :                            ;	mp_copy();			//	mc = ma;
+ 1522/ 522 : 20 18 03                   	jsr	mp_copy
+ 1523/ 525 :                            ;
+ 1524/ 525 :                            ;//	a='C'; mc_dump();
+ 1525/ 525 :                            ;
+ 1526/ 525 :                            ;// arctan(x) = x - (1/3)x**3 + (1/5)x**5 - (1/7)x**7 ・・・
+ 1527/ 525 :                            ;// LOOP: ma +-= mb
+ 1528/ 525 :                            ;
+ 1529/ 525 :                            ;	indx0=3;
+ 1530/ 525 : C4 03                      	ld	a, =3
+ 1531/ 527 : CD B5                      	st	a,indx0
+ 1532/ 529 :                            ;	indx1=0;
+ 1533/ 529 : C4 00                      	ld	a, =0
+ 1534/ 52B : CD B6                      	st	a,indx1
+ 1535/ 52D :                            ;	sign1=0;
+ 1536/ 52D : C4 00                      	ld	a, =0
+ 1537/ 52F : CD B9                      	st	a,sign1
+ 1538/ 531 :                            ;
+ 1539/ 531 :                            ;	cnt3=120;
+ 1540/ 531 : C4 78                      	ld	a, =120
+ 1541/ 533 : CD B3                      	st	a,cnt3
+ 1542/ 535 :                            ;	do {
+ 1543/ 535 :                            __do041:
+ 1544/ 535 :                            ;		// mc = mc*(1/n)*(1/n)
+ 1545/ 535 :                            ;		ea=#mc ; p2=ea;
+ 1546/ 535 : 84 25 08                   	ld	ea, =mc
+ 1547/ 538 : 46                         	ld	p2,ea
+ 1548/ 539 :                            ;		a=0;e=a;a=n1;	mp_div();
+ 1549/ 539 : C4 00                      	ld	a, =0
+ 1550/ 53B : 48                         	ld	e,a
+ 1551/ 53C : C5 B8                      	ld	a,n1
+ 1552/ 53E : 20 86 03                   	jsr	mp_div
+ 1553/ 541 :                            ;		ea=#mc ; p2=ea;
+ 1554/ 541 : 84 25 08                   	ld	ea, =mc
+ 1555/ 544 : 46                         	ld	p2,ea
+ 1556/ 545 :                            ;		a=0;e=a;a=n1;	mp_div();
+ 1557/ 545 : C4 00                      	ld	a, =0
+ 1558/ 547 : 48                         	ld	e,a
+ AS V1.42 Beta [Bld 269] - Source File moni3.asm - Page 27 - 2025年01月23日 11時50分37秒
+
+
+ 1559/ 548 : C5 B8                      	ld	a,n1
+ 1560/ 54A : 20 86 03                   	jsr	mp_div
+ 1561/ 54D :                            ;
+ 1562/ 54D :                            ;//		a='c'; mc_dump();
+ 1563/ 54D :                            ;		
+ 1564/ 54D :                            ;		// mb = mc*(1/i)
+ 1565/ 54D :                            ;		ea=#mb ; p2=ea;
+ 1566/ 54D : 84 5B 07                   	ld	ea, =mb
+ 1567/ 550 : 46                         	ld	p2,ea
+ 1568/ 551 :                            ;		ea=#mc ; p3=ea;
+ 1569/ 551 : 84 25 08                   	ld	ea, =mc
+ 1570/ 554 : 47                         	ld	p3,ea
+ 1571/ 555 :                            ;		mp_copy();			//	mb = mc;
+ 1572/ 555 : 20 18 03                   	jsr	mp_copy
+ 1573/ 558 :                            ;
+ 1574/ 558 :                            ;		ea=#mb ; p2=ea;
+ 1575/ 558 : 84 5B 07                   	ld	ea, =mb
+ 1576/ 55B : 46                         	ld	p2,ea
+ 1577/ 55C :                            ;		ea=indx0;mp_div();
+ 1578/ 55C : 85 B5                      	ld	ea,indx0
+ 1579/ 55E : 20 86 03                   	jsr	mp_div
+ 1580/ 561 :                            ;
+ 1581/ 561 :                            ;//		a='b'; mb_dump();
+ 1582/ 561 :                            ;		
+ 1583/ 561 :                            ;//		if(mp_zerochk(mb,PRECISION-16)==0) break;
+ 1584/ 561 :                            ;		
+ 1585/ 561 :                            ;		ea=#ma ; p2=ea;
+ 1586/ 561 : 84 91 06                   	ld	ea, =ma
+ 1587/ 564 : 46                         	ld	p2,ea
+ 1588/ 565 :                            ;		ea=#mb ; p3=ea;
+ 1589/ 565 : 84 5B 07                   	ld	ea, =mb
+ 1590/ 568 : 47                         	ld	p3,ea
+ 1591/ 569 :                            ;
+ 1592/ 569 :                            ;		a=sign1;a ^= 1;sign1=a;
+ 1593/ 569 : C5 B9                      	ld	a,sign1
+ 1594/ 56B : E4 01                      	xor	a, =1
+ 1595/ 56D : CD B9                      	st	a,sign1
+ 1596/ 56F :                            ;		if(a!=0) {
+ 1597/ 56F : 6C 06                      	bz	__el042
+ 1598/ 571 :                            ;			mp_sub();
+ 1599/ 571 : 20 08 04                   	jsr	mp_sub
+ 1600/ 574 :                            ;		}else{
+ 1601/ 574 : 24 79 05                   	jmp	__fi042
+ 1602/ 577 :                            __el042:
+ 1603/ 577 :                            ;			mp_add();
+ 1604/ 577 : 20 C2 03                   	jsr	mp_add
+ 1605/ 57A :                            ;		}
+ 1606/ 57A :                            __fi042:
+ 1607/ 57A :                            ;
+ 1608/ 57A :                            ;		// indx0 += 2;
+ 1609/ 57A :                            ;		ea=indx0;ea+=2;
+ 1610/ 57A : 85 B5                      	ld	ea,indx0
+ 1611/ 57C : B4 02 00                   	add	ea, =2
+ 1612/ 57F :                            ;		indx0=ea;
+ 1613/ 57F : 8D B5                      	st	ea,indx0
+ 1614/ 581 :                            ;
+ 1615/ 581 :                            ;	}while(--cnt3);
+ 1616/ 581 : 9D B3                      	dld	A,cnt3
+ 1617/ 583 : 7C B0                      	bnz	__do041
+ 1618/ 585 :                            __od041:
+ AS V1.42 Beta [Bld 269] - Source File moni3.asm - Page 28 - 2025年01月23日 11時50分37秒
+
+
+ 1619/ 585 :                            ;	a='A'; ma_dump();
+ 1620/ 585 : C4 41                      	ld	a, ='A'
+ 1621/ 587 : 20 47 03                   	jsr	ma_dump
+ 1622/ 58A :                            ;}
+ 1623/ 58A : 5C                         	ret
+ 1624/ 58B :                            ;
+ 1625/ 58B :                            ;dump_pi()
+ 1626/ 58B :                            ;{
+ 1627/ 58B :                            dump_pi:
+ 1628/ 58B :                            ;	ea=#Pi;p2=ea;mdump(); //メモリーダンプの実行.
+ 1629/ 58B : 84 C7 05                   	ld	ea, =Pi
+ 1630/ 58E : 46                         	ld	p2,ea
+ 1631/ 58F : 20 56 01                   	jsr	mdump
+ 1632/ 592 :                            ;}
+ 1633/ 592 : 5C                         	ret
+ 1634/ 593 :                            ;/**********************************************************************
+ 1635/ 593 :                            ; *	マチンの公式でπを計算して、Pi に格納
+ 1636/ 593 :                            ; **********************************************************************
+ 1637/ 593 :                            ; */
+ 1638/ 593 :                            ;calc_pi()
+ 1639/ 593 :                            ;{
+ 1640/ 593 :                            calc_pi:
+ 1641/ 593 :                            ;//	16 arctan(1/5)
+ 1642/ 593 :                            ;	m1=16;n1=5;
+ 1643/ 593 : C4 10                      	ld	a, =16
+ 1644/ 595 : CD B7                      	st	a,m1
+ 1645/ 597 : C4 05                      	ld	a, =5
+ 1646/ 599 : CD B8                      	st	a,n1
+ 1647/ 59B :                            ;	calc_M_atan_1_N();
+ 1648/ 59B : 20 01 05                   	jsr	calc_M_atan_1_N
+ 1649/ 59E :                            ;	ea=#Pi ; p2=ea;
+ 1650/ 59E : 84 C7 05                   	ld	ea, =Pi
+ 1651/ 5A1 : 46                         	ld	p2,ea
+ 1652/ 5A2 :                            ;	ea=#ma ; p3=ea;
+ 1653/ 5A2 : 84 91 06                   	ld	ea, =ma
+ 1654/ 5A5 : 47                         	ld	p3,ea
+ 1655/ 5A6 :                            ;	mp_copy();			//	*Pi = *ma;
+ 1656/ 5A6 : 20 18 03                   	jsr	mp_copy
+ 1657/ 5A9 :                            ;
+ 1658/ 5A9 :                            ;// -4 arctan(1/239)
+ 1659/ 5A9 :                            ;	m1=4;n1=239;
+ 1660/ 5A9 : C4 04                      	ld	a, =4
+ 1661/ 5AB : CD B7                      	st	a,m1
+ 1662/ 5AD : C4 EF                      	ld	a, =239
+ 1663/ 5AF : CD B8                      	st	a,n1
+ 1664/ 5B1 :                            ;	calc_M_atan_1_N();
+ 1665/ 5B1 : 20 01 05                   	jsr	calc_M_atan_1_N
+ 1666/ 5B4 :                            ;	ea=#Pi ; p2=ea;
+ 1667/ 5B4 : 84 C7 05                   	ld	ea, =Pi
+ 1668/ 5B7 : 46                         	ld	p2,ea
+ 1669/ 5B8 :                            ;	ea=#ma ; p3=ea;
+ 1670/ 5B8 : 84 91 06                   	ld	ea, =ma
+ 1671/ 5BB : 47                         	ld	p3,ea
+ 1672/ 5BC :                            ;	mp_sub();			// *Pi -= *ma;
+ 1673/ 5BC : 20 08 04                   	jsr	mp_sub
+ 1674/ 5BF :                            ;// ===> Pi
+ 1675/ 5BF :                            ;}
+ 1676/ 5BF : 5C                         	ret
+ 1677/ 5C0 :                            ;
+ 1678/ 5C0 :                            ;/**********************************************************************
+ AS V1.42 Beta [Bld 269] - Source File moni3.asm - Page 29 - 2025年01月23日 11時50分37秒
+
+
+ 1679/ 5C0 :                            ; *	メインルーチン.
+ 1680/ 5C0 :                            ; **********************************************************************
+ 1681/ 5C0 :                            ; */
+ 1682/ 5C0 :                            ;pi_main()
+ 1683/ 5C0 :                            ;{
+ 1684/ 5C0 :                            pi_main:
+ 1685/ 5C0 :                            ;	// 円周率計算.
+ 1686/ 5C0 :                            ;	calc_pi();
+ 1687/ 5C0 : 20 92 05                   	jsr	calc_pi
+ 1688/ 5C3 :                            ;
+ 1689/ 5C3 :                            ;	// 円周率Print.
+ 1690/ 5C3 :                            ;	print_pi();
+ 1691/ 5C3 : 20 8F 04                   	jsr	print_pi
+ 1692/ 5C6 :                            ;}
+ 1693/ 5C6 : 5C                         	ret
+ 1694/ 5C7 :                            ;/**********************************************************************
+ 1695/ 5C7 :                            ; *
+ 1696/ 5C7 :                            ; **********************************************************************
+ 1697/ 5C7 :                            ; */
+ 1698/ 5C7 :                            ;
+ 1699/ 5C7 :                            ;Pi: 
+ 1700/ 5C7 :                            Pi:
+ 1701/ 5C7 :                            ;	ds(PRECISION+2);
+ 1702/ 5C7 :                            	ds	PRECISION+2
+ 1703/ 691 :                            ;ma: 
+ 1704/ 691 :                            ma:
+ 1705/ 691 :                            ;	ds(PRECISION+2);
+ 1706/ 691 :                            	ds	PRECISION+2
+ 1707/ 75B :                            ;mb: 
+ 1708/ 75B :                            mb:
+ 1709/ 75B :                            ;	ds(PRECISION+2);
+ 1710/ 75B :                            	ds	PRECISION+2
+ 1711/ 825 :                            ;mc: 
+ 1712/ 825 :                            mc:
+ 1713/ 825 :                            ;	ds(PRECISION+2);
+ 1714/ 825 :                            	ds	PRECISION+2
+ 1715/ 8EF :                            ;_workend:
+ 1716/ 8EF :                            _workend:
+ 1717/ 8EF :                            ;	ds(2);
+ 1718/ 8EF :                            	ds	2
+ 1719/ 8F1 :                            ;//
+ 1720/ 8F1 :                            
+ AS V1.42 Beta [Bld 269] - Source File moni3.asm - Page 30 - 2025年01月23日 11時50分37秒
 
 
   Symbol Table (* = unused):
@@ -898,67 +1817,99 @@
  ASCDUMP1 :                     119 C |  ASCDUMP_16 :                    FE C |
  ASCDUMP_8 :                    10B C | *BENCHMARK :                     34 C |
  BENCH_SUBR :                    51 C |  BENCH_SUBR2 :                   5D C |
-*BUFEND :                       28A C | *CASESENSITIVE :                  0 - |
- CMD :                           62 C |  CNT1 :                        FF81 - |
- CNT2 :                        FF82 - | *CONSTPI :        3.141592653589793 - |
- CYR0 :                        FFB0 - |  CYR1 :                        FFB1 - |
- CYR2 :                        FFB2 - |
-*DATE :             "2025\-027\-071\-07601\-026\-100\-12022\-026\-105\-091" - |
- DIV32_16 :                     28B C |  DIV_TEST :                     2CD C |
+*BUFEND :                       29B C |  CALC_M_ATAN_1_N :              502 C |
+ CALC_PI :                      593 C | *CASESENSITIVE :                  0 - |
+ CHR1 :                        FFBC - |  CMD :                           62 C |
+ CNT1 :                        FF81 - |  CNT2 :                        FF82 - |
+ CNT3 :                        FFB3 - | *CNT4 :                        FFB4 - |
+*CONSTPI :        3.141592653589793 - |  CYR0 :                        FFB0 - |
+ CYR1 :                        FFB1 - |  CYR2 :                        FFB2 - |
+*DATE :             "2025\-027\-071\-07601\-026\-100\-12023\-026\-105\-091" - |
+ DIV32_16 :                     2A8 C | *DIV_TEST :                     2EA C |
+*DUMP_PI :                      58B C |  EA_MUL10 :                     44F C |
  EXIT :                           B C | *FALSE :                          0 - |
- GETC :                           7 C |  GETS :                         1DA C |
-*HAS64 :                          1 - |  INBUF :                        20A C |
- LC :                           144 C | *LISTON :                         1 - |
-*MACEXP :                         7 - |  MAIN :                           D C |
+ GETC :                           7 C |  GETS :                         1EB C |
+*HAS64 :                          1 - |  INBUF :                        21B C |
+ INDX0 :                       FFB5 - |  INDX1 :                       FFB6 - |
+ LC :                           144 C |  LF1 :                         FFBB - |
+*LISTON :                         1 - |  M1 :                          FFB7 - |
+ MA :                           691 C | *MACEXP :                         7 - |
+ MAIN :                           D C |  MA_DUMP :                      348 C |
+ MB :                           75B C | *MB_DUMP :                      35D C |
+ MC :                           825 C | *MC_DUMP :                      372 C |
  MDUMP :                        157 C |  MDUMP_16 :                     163 C |
- MDUMP_8 :                      17E C | *MOMCPU :                      8070 - |
-*MOMCPUNAME :                "8070" - |  MSG1 :                         1F1 C |
-*NESTMAX :                      100 - |  P4 :                          FF84 - |
+ MDUMP_8 :                      17E C |  MDUMP_B16 :                    18F C |
+*MOMCPU :                      8070 - | *MOMCPUNAME :                "8070" - |
+ MP_ADD :                       3C3 C |  MP_COPY :                      319 C |
+ MP_DIV :                       387 C |  MP_MUL10 :                     456 C |
+ MP_SET :                       304 C |  MP_SUB :                       409 C |
+ MSG1 :                         202 C |  N1 :                          FFB8 - |
+*NESTMAX :                      100 - |  P2_LAST :                      3B1 C |
+ P3_LAST :                      3BA C |  P4 :                          FF84 - |
  P4MUL16 :                       9D C |  P5 :                          FF86 - |
- PRHEX1 :                       1A7 C |  PRHEX2 :                       198 C |
- PRHEX4 :                       18F C |  PR_SPC :                       1BF C |
- PUTC :                           9 C |  PUTS :                         1D0 C |
- PUT_CRLF :                     1C5 C |  Q0 :                          FFA0 - |
+ PI :                           5C7 C | *PI_DUMP :                      333 C |
+ PI_EQU_1 :                     29C C |  PI_EQU_2 :                     2A2 C |
+ PI_MAIN :                      5C0 C |  PRECISION :                     C8 - |
+ PRHEX1 :                       1B8 C |  PRHEX2 :                       1A9 C |
+ PRHEX4 :                       1A0 C |  PRINT_PI :                     490 C |
+ PR_SPC :                       1D0 C |  PUTC :                           9 C |
+ PUTS :                         1E1 C |  PUT_CRLF :                     1D6 C |
+ Q0 :                          FFA0 - | *Q0_DUMP :                      326 C |
 *Q1 :                          FFA1 - |  Q2 :                          FFA2 - |
 *Q3 :                          FFA3 - |  Q4 :                          FFA4 - |
-*Q5 :                          FFA5 - | *R0 :                          FFA8 - |
-*R1 :                          FFAA - | *R2 :                          FFAC - |
-*R3 :                          FFAE - |  R4 :                          FF83 - |
+*Q5 :                          FFA5 - |  R0 :                          FFA8 - |
+ R1 :                          FFAA - |  R2 :                          FFAC - |
+ R3 :                          FFAE - |  R4 :                          FF83 - |
  READHEX :                       A8 C |  READHEX1 :                      D7 C |
-*RELAXED :                        0 - |  SP_SKIP :                       8F C |
-*TIME :               "16\-026\-103\-12609\-027\-120\-12220\-025\-089\-110" - |
-*TRUE :                           1 - | *UC :                           131 C |
-*VERSION :                     142F - | *WK1 :                         FF80 - |
+*RELAXED :                        0 - |  SIGN1 :                       FFB9 - |
+ SP_SKIP :                       8F C |  TAB1 :                        FFBA - |
+*TIME :               "11\-026\-103\-12650\-027\-120\-12237\-025\-089\-110" - |
+ TOP1 :                        FFBD - | *TRUE :                           1 - |
+*UC :                           131 C | *VERSION :                     142F - |
+*WK1 :                         FF80 - | *_WORKEND :                     8EF C |
  __DO001 :                       38 C |  __DO002 :                       3C C |
  __DO003 :                       55 C |  __DO014 :                      10F C |
  __DO021 :                      15B C |  __DO022 :                      182 C |
- __DO024 :                      1D0 C |  __DO025 :                      1DA C |
- __DO026 :                      29B C |  __EL004 :                       86 C |
- __EL005 :                       79 C |  __EL006 :                       8E C |
- __EL009 :                       D0 C |  __EL010 :                       EB C |
- __EL011 :                       EB C |  __EL012 :                       FB C |
- __EL013 :                       FB C |  __EL015 :                      122 C |
- __EL016 :                      12C C |  __EL017 :                      142 C |
- __EL018 :                      142 C |  __EL019 :                      155 C |
- __EL020 :                      155 C |  __EL023 :                      1B7 C |
- __EL027 :                      2C7 C | *__EW000 :                       30 C |
- __EW007 :                       9C C | *__EW008 :                       D6 C |
- __FI009 :                       D3 C |  __FI023 :                      1B8 C |
- __FI027 :                      2C8 C | *__OD001 :                       47 C |
-*__OD002 :                       43 C | *__OD003 :                       5C C |
-*__OD014 :                      118 C | *__OD021 :                      162 C |
-*__OD022 :                      18E C |  __OD024 :                      1D9 C |
- __OD025 :                      1EC C | *__OD026 :                      2CC C |
+ AS V1.42 Beta [Bld 269] - Source File moni3.asm - Page 31 - 2025年01月23日 11時50分37秒
+
+
+ __DO023 :                      193 C |  __DO025 :                      1E1 C |
+ __DO026 :                      1EB C |  __DO027 :                      2B8 C |
+ __DO029 :                      310 C |  __DO030 :                      31D C |
+ __DO031 :                      395 C |  __DO032 :                      3E5 C |
+ __DO034 :                      42B C |  __DO036 :                      471 C |
+ __DO037 :                      4A2 C |  __DO041 :                      535 C |
+ __EL004 :                       86 C |  __EL005 :                       79 C |
+ __EL006 :                       8E C |  __EL009 :                       D0 C |
+ __EL010 :                       EB C |  __EL011 :                       EB C |
+ __EL012 :                       FB C |  __EL013 :                       FB C |
+ __EL015 :                      122 C |  __EL016 :                      12C C |
+ __EL017 :                      142 C |  __EL018 :                      142 C |
+ __EL019 :                      155 C |  __EL020 :                      155 C |
+ __EL024 :                      1C8 C |  __EL028 :                      2E4 C |
+ __EL033 :                      400 C |  __EL035 :                      446 C |
+ __EL038 :                      4D3 C |  __EL039 :                      4FA C |
+ __EL040 :                      4FA C |  __EL042 :                      577 C |
+*__EW000 :                       30 C |  __EW007 :                       9C C |
+*__EW008 :                       D6 C |  __FI009 :                       D3 C |
+ __FI024 :                      1C9 C |  __FI028 :                      2E5 C |
+ __FI038 :                      4FA C |  __FI042 :                      57A C |
+*__OD001 :                       47 C | *__OD002 :                       43 C |
+*__OD003 :                       5C C | *__OD014 :                      118 C |
+*__OD021 :                      162 C | *__OD022 :                      18E C |
+*__OD023 :                      19F C |  __OD025 :                      1EA C |
+ __OD026 :                      1FD C | *__OD027 :                      2E9 C |
+*__OD029 :                      318 C | *__OD030 :                      325 C |
+*__OD031 :                      3B0 C | *__OD032 :                      408 C |
+*__OD034 :                      44E C | *__OD036 :                      48F C |
+*__OD037 :                      4FE C | *__OD041 :                      585 C |
  __WH000 :                       16 C |  __WH007 :                       91 C |
  __WH008 :                       AF C |
- AS V1.42 Beta [Bld 269] - Source File moni3.asm - Page 17 - 2025年01月22日 16時09分20秒
 
+    174 symbols
+     48 unused symbols
 
-
-    109 symbols
-     35 unused symbols
-
- AS V1.42 Beta [Bld 269] - Source File moni3.asm - Page 18 - 2025年01月22日 16時09分20秒
+ AS V1.42 Beta [Bld 269] - Source File moni3.asm - Page 32 - 2025年01月23日 11時50分37秒
 
 
   Code Pages:
@@ -970,7 +1921,7 @@ STANDARD (0 changed characters)
 
 0.00 seconds assembly time
 
-    843 lines source file
+   1720 lines source file
       2 passes
       0 errors
       0 warnings
